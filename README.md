@@ -38,3 +38,8 @@ Admin:
 ## Notlar
 - Bu iskelet **prod'a uygun** şekilde (gunicorn + nginx) kurgulandı.
 - İleride: Celery worker + beat, S3/MinIO medya, gelişmiş arama ve dinamik form şeması eklenecek.
+
+## API
+- `/api/main-codes/` (GET/POST)
+- `/api/artifacts/` (GET/POST)
+
