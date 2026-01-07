@@ -43,3 +43,5 @@ Admin:
 - `/api/main-codes/` (GET/POST)
 - `/api/artifacts/` (GET/POST)
 
+
+- `/api/artifacts/check-unique/?main_code=<id>&artifact_no=<no>` (GET)
