@@ -36,3 +36,24 @@ class MainCodeViewSet(viewsets.ModelViewSet):
 class ArtifactViewSet(viewsets.ModelViewSet):
     queryset = Artifact.objects.select_related("main_code").all().order_by("-created_at")
     serializer_class = ArtifactSerializer
+
+
+@action(detail=False, methods=["get"], url_path="check-unique")
+def check_unique(self, request):
+    """Check uniqueness for (main_code, artifact_no)."""
+    main_code = request.query_params.get("main_code")
+    artifact_no = request.query_params.get("artifact_no")
+    exclude_id = request.query_params.get("exclude_id")
+
+    if not main_code or not artifact_no:
+        return Response({"detail": "main_code ve artifact_no zorunludur.", "exists": False}, status=400)
+
+    try:
+        no_int = int(artifact_no)
+    except ValueError:
+        return Response({"detail": "artifact_no sayı olmalıdır.", "exists": False}, status=400)
+
+    qs = Artifact.objects.filter(main_code_id=main_code, artifact_no=no_int)
+    if exclude_id:
+        qs = qs.exclude(pk=exclude_id)
+    return Response({"exists": qs.exists()})

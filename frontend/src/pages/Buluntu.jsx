@@ -1,6 +1,33 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "../api.js";
 
+const LENGTH_UNITS = ["mm", "cm", "m"];
+const WEIGHT_UNITS = ["gr", "kg"];
+
+const SURFACE_QUALITY = [
+  { value: 0, label: "Pürtüklü" },
+  { value: 1, label: "Tozsu" },
+  { value: 2, label: "Kaygan" },
+];
+
+const BAKING = [
+  { value: 0, label: "İyi" },
+  { value: 1, label: "Orta" },
+  { value: 2, label: "Kötü" },
+];
+
+const TEXTURE = [
+  { value: 0, label: "Sert" },
+  { value: 1, label: "Orta" },
+  { value: 2, label: "Yumuşak" },
+];
+
+const PORE = [
+  { value: 0, label: "Az" },
+  { value: 1, label: "Orta" },
+  { value: 2, label: "Çok" },
+];
+
 function pad4(n) {
   const s = String(n ?? "").replace(/\D/g, "");
   if (!s) return "";
@@ -39,6 +66,66 @@ function Row({ label, value }) {
       <div style={{ fontWeight: 600, whiteSpace: "pre-wrap" }}>{value || ""}</div>
     </div>
   );
+}
+
+function Field({ label, children, hint }) {
+  return (
+    <div>
+      <label>{label}</label>
+      <div style={{ marginTop: 6 }}>{children}</div>
+      {hint ? <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>{hint}</div> : null}
+    </div>
+  );
+}
+
+function TextInput({ value, onChange, placeholder, error }) {
+  return (
+    <input
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{ width: "100%", padding: 10, borderRadius: 10, border: error ? "1px solid #b00" : "1px solid #ddd" }}
+    />
+  );
+}
+
+function Select({ value, onChange, options, placeholder }) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+    >
+      <option value="">{placeholder || "Seçiniz..."}</option>
+      {options.map((o) => (
+        <option key={String(o.value)} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function TwoPartMeasure({ label, value, unit, onChangeValue, onChangeUnit }) {
+  return (
+    <Field label={label}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 10 }}>
+        <TextInput value={value} onChange={onChangeValue} placeholder="" />
+        <Select
+          value={unit}
+          onChange={onChangeUnit}
+          options={LENGTH_UNITS.map((u) => ({ value: u, label: u }))}
+          placeholder="Birim"
+        />
+      </div>
+    </Field>
+  );
+}
+
+function getOptionLabel(options, value) {
+  const v = value === null || value === undefined ? "" : String(value);
+  const found = options.find((o) => String(o.value) === v);
+  return found ? found.label : String(value ?? "");
 }
 
 export default function Buluntu() {
@@ -92,6 +179,20 @@ export default function Buluntu() {
 
   const fullNoPreview = selectedCode ? `${selectedCode.code}${pad4(form.artifact_no)}` : "";
 
+  function setDetail(key, value) {
+    setForm((prev) => ({
+      ...prev,
+      details: { ...(prev.details || {}), [key]: value },
+    }));
+  }
+
+  function setMeasure(key, value) {
+    setForm((prev) => ({
+      ...prev,
+      measurements: { ...(prev.measurements || {}), [key]: value },
+    }));
+  }
+
   async function checkUnique(nextMainCode, nextArtifactNo) {
     setUniqueHint("");
     setUniqueError(false);
@@ -108,6 +209,7 @@ export default function Buluntu() {
     if (!noInt) return;
 
     try {
+      // DRF router: trailing slash önemli
       const res = await apiGet(`/api/artifacts/check-unique/?main_code=${encodeURIComponent(mc)}&artifact_no=${encodeURIComponent(noInt)}`);
       if (res.exists) {
         setUniqueHint(`UYARI: Bu Anakod için bu Buluntu No zaten var (${fullNoPreview}).`);
@@ -117,7 +219,6 @@ export default function Buluntu() {
         setUniqueError(false);
       }
     } catch (e) {
-      // sessiz geç; backend down vb.
       setUniqueHint(`Tam Buluntu No: ${fullNoPreview}`);
       setUniqueError(false);
     }
@@ -148,7 +249,7 @@ export default function Buluntu() {
 
       if (!form.artifact_date) throw new Error("Buluntu Tarihi seçiniz.");
 
-      // Son kontrol: server-side unique endpoint (race condition'a da dayanır)
+      // Server-side unique check
       const uniq = await apiGet(`/api/artifacts/check-unique/?main_code=${encodeURIComponent(form.main_code)}&artifact_no=${encodeURIComponent(no)}`);
       if (uniq.exists) throw new Error(`Bu Anakod için bu Buluntu No zaten mevcut (${fullNoPreview}).`);
 
@@ -196,6 +297,275 @@ export default function Buluntu() {
     setDetailOpen(true);
   }
 
+  function renderFormFields() {
+    if (form.form_type === "SIKKE") {
+      return (
+        <section style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>Sikke Alanları</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <Field label="Kondüsyon">
+              <TextInput value={form.details?.condition} onChange={(v) => setDetail("condition", v)} />
+            </Field>
+
+            <Field label="Birimi">
+              <TextInput value={form.details?.unit} onChange={(v) => setDetail("unit", v)} />
+            </Field>
+
+            <Field label="Çap">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 10 }}>
+                <TextInput value={form.details?.diameter} onChange={(v) => setDetail("diameter", v)} />
+                <Select value={form.details?.diameter_unit} onChange={(v) => setDetail("diameter_unit", v)} options={LENGTH_UNITS.map(u => ({ value: u, label: u }))} placeholder="Birim" />
+              </div>
+            </Field>
+
+            <Field label="Kalıp Yönü">
+              <TextInput value={form.details?.mold_direction} onChange={(v) => setDetail("mold_direction", v)} />
+            </Field>
+
+            <Field label="İmparator">
+              <TextInput value={form.details?.emperor} onChange={(v) => setDetail("emperor", v)} />
+            </Field>
+
+            <Field label="Darp Yılı">
+              <TextInput value={form.details?.minting_year} onChange={(v) => setDetail("minting_year", v)} />
+            </Field>
+
+            <Field label="Ön Yüz Tanımı">
+              <TextInput value={form.details?.front_face_definition} onChange={(v) => setDetail("front_face_definition", v)} />
+            </Field>
+
+            <Field label="Arka Yüz Tanımı">
+              <TextInput value={form.details?.back_face_definition} onChange={(v) => setDetail("back_face_definition", v)} />
+            </Field>
+
+            <Field label="Ön Yüz Lejandı">
+              <TextInput value={form.details?.front_face_legend} onChange={(v) => setDetail("front_face_legend", v)} />
+            </Field>
+
+            <Field label="Arka Yüz Lejandı">
+              <TextInput value={form.details?.back_face_legend} onChange={(v) => setDetail("back_face_legend", v)} />
+            </Field>
+
+            <Field label="Darphane">
+              <TextInput value={form.details?.mint} onChange={(v) => setDetail("mint", v)} />
+            </Field>
+
+            <Field label="Şube">
+              <TextInput value={form.details?.branch} onChange={(v) => setDetail("branch", v)} />
+            </Field>
+
+            <Field label="Ref.">
+              <TextInput value={form.details?.reference} onChange={(v) => setDetail("reference", v)} />
+            </Field>
+
+            <Field label="Ağırlık">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 10 }}>
+                <TextInput value={form.details?.weight} onChange={(v) => setDetail("weight", v)} />
+                <Select value={form.details?.weight_unit} onChange={(v) => setDetail("weight_unit", v)} options={WEIGHT_UNITS.map(u => ({ value: u, label: u }))} placeholder="Birim" />
+              </div>
+            </Field>
+          </div>
+        </section>
+      );
+    }
+
+    if (form.form_type === "SERAMIK") {
+      return (
+        <section style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>Seramik Alanları</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <Field label="Hamur Rengi">
+              <TextInput value={form.details?.clay_color} onChange={(v) => setDetail("clay_color", v)} placeholder="örn: Kırmızımsı" />
+            </Field>
+            <Field label="Astar Rengi">
+              <TextInput value={form.details?.undercoat_color} onChange={(v) => setDetail("undercoat_color", v)} placeholder="örn: Krem" />
+            </Field>
+            <Field label="Dipinto Rengi">
+              <TextInput value={form.details?.dipinto_color} onChange={(v) => setDetail("dipinto_color", v)} />
+            </Field>
+            <Field label="Diğer Renk">
+              <TextInput value={form.details?.other_color} onChange={(v) => setDetail("other_color", v)} />
+            </Field>
+            <Field label="Yüzey Rengi">
+              <TextInput value={form.details?.surface_color} onChange={(v) => setDetail("surface_color", v)} />
+            </Field>
+            <Field label="Sır Rengi">
+              <TextInput value={form.details?.glaze_color} onChange={(v) => setDetail("glaze_color", v)} />
+            </Field>
+            <Field label="Bezeme Rengi">
+              <TextInput value={form.details?.pattern_color} onChange={(v) => setDetail("pattern_color", v)} />
+            </Field>
+
+            <Field label="Hamur Tanım">
+              <TextInput value={form.details?.clay_definition} onChange={(v) => setDetail("clay_definition", v)} />
+            </Field>
+            <Field label="Form Tanım">
+              <TextInput value={form.details?.form_definition} onChange={(v) => setDetail("form_definition", v)} />
+            </Field>
+
+            <Field label="Astar/Sır/Yüzey Tanım">
+              <TextInput value={form.details?.more_definition} onChange={(v) => setDetail("more_definition", v)} />
+            </Field>
+
+            <Field label="Yüzey Kalitesi">
+              <Select value={form.details?.surface_quality} onChange={(v) => setDetail("surface_quality", v === "" ? "" : Number(v))} options={SURFACE_QUALITY} />
+            </Field>
+
+            <Field label="Fırınlama">
+              <Select value={form.details?.baking} onChange={(v) => setDetail("baking", v === "" ? "" : Number(v))} options={BAKING} />
+            </Field>
+
+            <Field label="Doku">
+              <Select value={form.details?.texture} onChange={(v) => setDetail("texture", v === "" ? "" : Number(v))} options={TEXTURE} />
+            </Field>
+
+            <Field label="Gözenek">
+              <Select value={form.details?.pore} onChange={(v) => setDetail("pore", v === "" ? "" : Number(v))} options={PORE} />
+            </Field>
+          </div>
+        </section>
+      );
+    }
+
+    return null;
+  }
+
+  function renderMeasurements() {
+    // Ortak ölçüler (örnek set). İleride DB şemasına bağlayacağız.
+    return (
+      <section style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>Ölçü Bilgileri</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+          <TwoPartMeasure
+            label="Yükseklik"
+            value={form.measurements?.height}
+            unit={form.measurements?.height_unit}
+            onChangeValue={(v) => setMeasure("height", v)}
+            onChangeUnit={(v) => setMeasure("height_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Ağız Çapı"
+            value={form.measurements?.nozzle_diameter}
+            unit={form.measurements?.nozzle_diameter_unit}
+            onChangeValue={(v) => setMeasure("nozzle_diameter", v)}
+            onChangeUnit={(v) => setMeasure("nozzle_diameter_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Kaide/Dip Çapı"
+            value={form.measurements?.base_diameter}
+            unit={form.measurements?.base_diameter_unit}
+            onChangeValue={(v) => setMeasure("base_diameter", v)}
+            onChangeUnit={(v) => setMeasure("base_diameter_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Kalınlık/Cidar"
+            value={form.measurements?.wall_thickness}
+            unit={form.measurements?.wall_thickness_unit}
+            onChangeValue={(v) => setMeasure("wall_thickness", v)}
+            onChangeUnit={(v) => setMeasure("wall_thickness_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Uzunluk"
+            value={form.measurements?.length}
+            unit={form.measurements?.length_unit}
+            onChangeValue={(v) => setMeasure("length", v)}
+            onChangeUnit={(v) => setMeasure("length_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Genişlik"
+            value={form.measurements?.width}
+            unit={form.measurements?.width_unit}
+            onChangeValue={(v) => setMeasure("width", v)}
+            onChangeUnit={(v) => setMeasure("width_unit", v)}
+          />
+          <TwoPartMeasure
+            label="Gövde Çapı"
+            value={form.measurements?.body_diameter}
+            unit={form.measurements?.body_diameter_unit}
+            onChangeValue={(v) => setMeasure("body_diameter", v)}
+            onChangeUnit={(v) => setMeasure("body_diameter_unit", v)}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  function renderDetailsPretty(row) {
+    // details JSON'u "form_type"a göre daha okunur gösterir (bu sürümde basit)
+    const d = row.details || {};
+    const m = row.measurements || {};
+
+    if (row.form_type === "SIKKE") {
+      return (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Sikke Detayları</div>
+          <Row label="Kondüsyon" value={d.condition} />
+          <Row label="Birimi" value={d.unit} />
+          <Row label="Çap" value={[d.diameter, d.diameter_unit].filter(Boolean).join(" ")} />
+          <Row label="Kalıp Yönü" value={d.mold_direction} />
+          <Row label="İmparator" value={d.emperor} />
+          <Row label="Darp Yılı" value={d.minting_year} />
+          <Row label="Ön Yüz Tanımı" value={d.front_face_definition} />
+          <Row label="Arka Yüz Tanımı" value={d.back_face_definition} />
+          <Row label="Ön Yüz Lejandı" value={d.front_face_legend} />
+          <Row label="Arka Yüz Lejandı" value={d.back_face_legend} />
+          <Row label="Darphane" value={d.mint} />
+          <Row label="Şube" value={d.branch} />
+          <Row label="Ref." value={d.reference} />
+          <Row label="Ağırlık" value={[d.weight, d.weight_unit].filter(Boolean).join(" ")} />
+        </div>
+      );
+    }
+
+    if (row.form_type === "SERAMIK") {
+      return (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Seramik Detayları</div>
+          <Row label="Hamur Rengi" value={d.clay_color} />
+          <Row label="Astar Rengi" value={d.undercoat_color} />
+          <Row label="Dipinto Rengi" value={d.dipinto_color} />
+          <Row label="Yüzey Rengi" value={d.surface_color} />
+          <Row label="Sır Rengi" value={d.glaze_color} />
+          <Row label="Bezeme Rengi" value={d.pattern_color} />
+          <Row label="Diğer Renk" value={d.other_color} />
+          <Row label="Hamur Tanım" value={d.clay_definition} />
+          <Row label="Form Tanım" value={d.form_definition} />
+          <Row label="Astar/Sır/Yüzey Tanım" value={d.more_definition} />
+          <Row label="Yüzey Kalitesi" value={getOptionLabel(SURFACE_QUALITY, d.surface_quality)} />
+          <Row label="Fırınlama" value={getOptionLabel(BAKING, d.baking)} />
+          <Row label="Doku" value={getOptionLabel(TEXTURE, d.texture)} />
+          <Row label="Gözenek" value={getOptionLabel(PORE, d.pore)} />
+        </div>
+      );
+    }
+
+    // Default: show raw JSON for now
+    return (
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Form Detayları (JSON)</div>
+        <pre style={{ margin: 0, fontSize: 12, background: "#fafafa", border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
+          {JSON.stringify(d, null, 2)}
+        </pre>
+      </div>
+    );
+  }
+
+  function renderMeasurementsPretty(row) {
+    const m = row.measurements || {};
+    return (
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Ölçü Bilgileri</div>
+        <Row label="Yükseklik" value={[m.height, m.height_unit].filter(Boolean).join(" ")} />
+        <Row label="Ağız Çapı" value={[m.nozzle_diameter, m.nozzle_diameter_unit].filter(Boolean).join(" ")} />
+        <Row label="Kaide/Dip Çapı" value={[m.base_diameter, m.base_diameter_unit].filter(Boolean).join(" ")} />
+        <Row label="Kalınlık/Cidar" value={[m.wall_thickness, m.wall_thickness_unit].filter(Boolean).join(" ")} />
+        <Row label="Uzunluk" value={[m.length, m.length_unit].filter(Boolean).join(" ")} />
+        <Row label="Genişlik" value={[m.width, m.width_unit].filter(Boolean).join(" ")} />
+        <Row label="Gövde Çapı" value={[m.body_diameter, m.body_diameter_unit].filter(Boolean).join(" ")} />
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 style={{ marginTop: 0 }}>Buluntu</h1>
@@ -204,8 +574,7 @@ export default function Buluntu() {
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Buluntu Oluştur</h2>
 
         <form onSubmit={onCreate} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <div>
-            <label>Anakod</label>
+          <Field label="Anakod">
             <select
               value={form.main_code}
               onChange={(e) => setForm({ ...form, main_code: e.target.value })}
@@ -218,36 +587,30 @@ export default function Buluntu() {
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          <div>
-            <label>Buluntu No</label>
-            <input
+          <Field label="Buluntu No" hint={uniqueHint || (fullNoPreview ? `Tam Buluntu No: ${fullNoPreview}` : "Önizleme için Anakod seçiniz.")}>
+            <TextInput
               value={form.artifact_no}
-              onChange={(e) => setForm({ ...form, artifact_no: e.target.value })}
+              onChange={(v) => setForm({ ...form, artifact_no: v })}
               placeholder="0001"
-              style={{ width: "100%", padding: 10, borderRadius: 10, border: uniqueError ? "1px solid #b00" : "1px solid #ddd" }}
+              error={uniqueError}
             />
-            <div style={{ fontSize: 12, color: uniqueError ? "#b00" : (fullNoPreview ? "#0b6" : "#666"), marginTop: 6 }}>
-              {uniqueHint || (fullNoPreview ? `Tam Buluntu No: ${fullNoPreview}` : "Önizleme için Anakod seçiniz.")}
-            </div>
-          </div>
+          </Field>
 
-          <div>
-            <label>Buluntu Tarihi</label>
+          <Field label="Buluntu Tarihi">
             <input
               type="date"
               value={form.artifact_date}
               onChange={(e) => setForm({ ...form, artifact_date: e.target.value })}
               style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
             />
-          </div>
+          </Field>
 
-          <div>
-            <label>Form Türü</label>
+          <Field label="Form Türü" hint="Not: Form değiştirince form detayları sıfırlanır (karışmasın diye).">
             <select
               value={form.form_type}
-              onChange={(e) => setForm({ ...form, form_type: e.target.value })}
+              onChange={(e) => setForm({ ...form, form_type: e.target.value, details: {}, measurements: {} })}
               style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
             >
               <option value="GENEL">Genel</option>
@@ -255,25 +618,15 @@ export default function Buluntu() {
               <option value="SERAMIK">Seramik</option>
               <option value="MEZAR">Mezar</option>
             </select>
-          </div>
+          </Field>
 
-          <div>
-            <label>Yapım Malzemesi</label>
-            <input
-              value={form.production_material}
-              onChange={(e) => setForm({ ...form, production_material: e.target.value })}
-              style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-            />
-          </div>
+          <Field label="Yapım Malzemesi">
+            <TextInput value={form.production_material} onChange={(v) => setForm({ ...form, production_material: v })} />
+          </Field>
 
-          <div>
-            <label>Dönem</label>
-            <input
-              value={form.period}
-              onChange={(e) => setForm({ ...form, period: e.target.value })}
-              style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-            />
-          </div>
+          <Field label="Dönem">
+            <TextInput value={form.period} onChange={(v) => setForm({ ...form, period: v })} />
+          </Field>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -314,7 +667,12 @@ export default function Buluntu() {
             />
           </div>
 
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ gridColumn: "1 / -1" }}>
+            {renderFormFields()}
+            {renderMeasurements()}
+          </div>
+
+          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, alignItems: "center", marginTop: 6 }}>
             <button
               type="submit"
               disabled={uniqueError}
@@ -388,19 +746,8 @@ export default function Buluntu() {
             <Row label="Notlar" value={detailRow.notes} />
             <Row label="Kaynak / Referans" value={detailRow.source_and_reference} />
 
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Form Detayları (JSON)</div>
-              <pre style={{ margin: 0, fontSize: 12, background: "#fafafa", border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
-                {JSON.stringify(detailRow.details || {}, null, 2)}
-              </pre>
-            </div>
-
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Ölçü Bilgileri (JSON)</div>
-              <pre style={{ margin: 0, fontSize: 12, background: "#fafafa", border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
-                {JSON.stringify(detailRow.measurements || {}, null, 2)}
-              </pre>
-            </div>
+            {renderDetailsPretty(detailRow)}
+            {renderMeasurementsPretty(detailRow)}
 
             <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ padding: 12, border: "1px solid #eee", borderRadius: 12 }}>

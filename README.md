@@ -45,3 +45,17 @@ Admin:
 
 
 - `/api/artifacts/check-unique/?main_code=<id>&artifact_no=<no>` (GET)
+
+
+## Troubleshooting
+### 404 (check-unique) veya güncellemeler görünmüyor
+Docker eski imajı çalıştırıyor olabilir. Temiz rebuild:
+```bash
+docker compose down
+docker compose up --build --no-cache
+```
+Gerekirse DB volume da sıfırla:
+```bash
+docker compose down -v
+docker compose up --build --no-cache
+```
