@@ -59,3 +59,14 @@ Gerekirse DB volume da sıfırla:
 docker compose down -v
 docker compose up --build --no-cache
 ```
+
+
+## Debug
+- `/api/routes/` : Artifact viewset extra action'larını gösterir. `check-unique` burada görünmelidir.
+
+## Güncelleme sonrası 404 görürseniz
+Eski Docker imajı çalışıyor olabilir. Tam temizlik:
+```bash
+docker compose down -v --rmi all --remove-orphans
+docker compose up -d --build --no-cache --force-recreate
+```

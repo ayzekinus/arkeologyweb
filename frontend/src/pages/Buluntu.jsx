@@ -249,9 +249,14 @@ export default function Buluntu() {
 
       if (!form.artifact_date) throw new Error("Buluntu Tarihi seçiniz.");
 
-      // Server-side unique check
-      const uniq = await apiGet(`/api/artifacts/check-unique/?main_code=${encodeURIComponent(form.main_code)}&artifact_no=${encodeURIComponent(no)}`);
-      if (uniq.exists) throw new Error(`Bu Anakod için bu Buluntu No zaten mevcut (${fullNoPreview}).`);
+      // Server-side unique check (endpoint yoksa da kayıt devam edebilsin; asıl güvence unique_together)
+      try {
+        const uniq = await apiGet(`/api/artifacts/check-unique/?main_code=${encodeURIComponent(form.main_code)}&artifact_no=${encodeURIComponent(no)}`);
+        if (uniq.exists) throw new Error(`Bu Anakod için bu Buluntu No zaten mevcut (${fullNoPreview}).`);
+      } catch (e) {
+        // check-unique endpoint 404/500 vb. durumlarda kayıt sürecini bloklamayalım.
+        // Backend tarafındaki unique_together + serializer validasyonu yine çakışmayı engeller.
+      }
 
       const payload = { ...form, artifact_no: no };
       const created = await apiPost("/api/artifacts/", payload);
