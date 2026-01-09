@@ -1,10 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "../api.js";
+import MainCodeDetailModal from "../components/MainCodeDetailModal.jsx";
+import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
+
+import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
+import Button from "../ui/Button.jsx";
+import Input from "../ui/Input.jsx";
+import Textarea from "../ui/Textarea.jsx";
 
 export default function Anakod() {
   const [rows, setRows] = useState([]);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  const [mcDetailOpen, setMcDetailOpen] = useState(false);
+  const [selectedMainCode, setSelectedMainCode] = useState(null);
+  const [mcArtifacts, setMcArtifacts] = useState([]);
+  const [mcArtifactsLoading, setMcArtifactsLoading] = useState(false);
+
+  const [artifactDetailOpen, setArtifactDetailOpen] = useState(false);
+  const [selectedArtifact, setSelectedArtifact] = useState(null);
 
   const [form, setForm] = useState({
     finding_place: "",
@@ -18,120 +33,236 @@ export default function Anakod() {
 
   async function refresh() {
     setErr("");
-    const data = await apiGet("/api/main-codes/");
-    setRows(data.results || data);
+    try {
+      const data = await apiGet("/api/main-codes/");
+      setRows(data.results || data);
+    } catch (e) {
+      setErr(e.message || "Liste yüklenemedi.");
+    }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
   async function onCreate(e) {
     e.preventDefault();
-    setMsg(""); setErr("");
+    setMsg("");
+    setErr("");
     try {
-      const created = await apiPost("/api/main-codes/", form);
-      setMsg(`Anakod ${created.code} başarı ile oluşturuldu.`);
-      setForm({ finding_place: "", plan_square: "", description: "", layer: "", level: "", grave_no: "", gis: "" });
+      const res = await apiPost("/api/main-codes/", form);
+      setMsg(`${res.code} anakod başarı ile oluşturuldu.`);
+      // Anakod alanı temizlenmesin → sistem verir (backend)
+      setForm((p) => ({ ...p, description: "" })); // örnek: açıklamayı temizle
       await refresh();
     } catch (e2) {
-      setErr(e2.message);
+      setErr(e2.message || "İşlem başarısız.");
     }
   }
 
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
-    setMsg(""); setErr("");
+    setMsg("");
+    setErr("");
     try {
       await apiDelete(`/api/main-codes/${id}/`);
       setMsg("Kayıt silindi.");
       await refresh();
     } catch (e2) {
-      setErr(e2.message);
+      setErr(e2.message || "Silme başarısız.");
     }
   }
 
+  async function openMainCodeDetail(row) {
+    setSelectedMainCode(row);
+    setMcDetailOpen(true);
+    setMcArtifacts([]);
+    setMcArtifactsLoading(true);
+    setErr("");
+    try {
+      const data = await apiGet(`/api/artifacts/?main_code=${encodeURIComponent(row.id)}`);
+      setMcArtifacts(data.results || data);
+    } catch (e) {
+      setErr(e.message || "Buluntular yüklenemedi.");
+    } finally {
+      setMcArtifactsLoading(false);
+    }
+  }
+
+  function openArtifactDetail(artifact) {
+    setSelectedArtifact(artifact);
+    setArtifactDetailOpen(true);
+  }
+
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Anakod</h1>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-extrabold">Anakod</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Anakod kodu sistem tarafından otomatik atanır ve sırayla ilerler (AAA → AAB → ...).
+        </p>
+      </div>
 
-      <section style={{ padding: 16, border: "1px solid #e5e5e5", borderRadius: 12 }}>
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Yeni Anakod Oluştur</h2>
-        <form onSubmit={onCreate} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-          <div>
-            <label>Buluntu Yeri</label>
-            <input required value={form.finding_place} onChange={(e) => setForm({ ...form, finding_place: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div>
-            <label>PlanKare</label>
-            <input value={form.plan_square} onChange={(e) => setForm({ ...form, plan_square: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div>
-            <label>Tabaka</label>
-            <input value={form.layer} onChange={(e) => setForm({ ...form, layer: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div>
-            <label>Seviye</label>
-            <input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div>
-            <label>Mezar No</label>
-            <input value={form.grave_no} onChange={(e) => setForm({ ...form, grave_no: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div>
-            <label>GIS</label>
-            <input value={form.gis} onChange={(e) => setForm({ ...form, gis: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label>Açıklama</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #ddd" }} />
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Anakod Oluştur</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <form onSubmit={onCreate} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
+              <div className="mt-1.5">
+                <Input
+                  required
+                  value={form.finding_place}
+                  onChange={(e) => setForm((p) => ({ ...p, finding_place: e.target.value }))}
+                />
+              </div>
+            </div>
 
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, alignItems: "center" }}>
-            <button type="submit" style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ddd", background: "#f7f7f7", cursor: "pointer" }}>
-              Anakod Oluştur (AAA..)
-            </button>
-            {msg && <span style={{ color: "#0b6" }}>{msg}</span>}
-            {err && <span style={{ color: "#b00" }}>{err}</span>}
-          </div>
-        </form>
-        <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-          Not: Anakod kodu sistem tarafından otomatik atanır ve sırayla ilerler (AAA → AAB → ...).
-        </div>
-      </section>
+            <div>
+              <label className="text-sm font-semibold text-slate-700">PlanKare</label>
+              <div className="mt-1.5">
+                <Input
+                  value={form.plan_square}
+                  onChange={(e) => setForm((p) => ({ ...p, plan_square: e.target.value }))}
+                />
+              </div>
+            </div>
 
-      <section style={{ marginTop: 18 }}>
-        <h2 style={{ fontSize: 16 }}>Anakod Listesi</h2>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                {["Anakod", "Buluntu Yeri", "PlanKare", "Tabaka", "Seviye", "Mezar No", "İşlem"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontSize: 13, color: "#444" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1", fontWeight: 700 }}>{r.code}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>{r.finding_place}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>{r.plan_square || ""}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>{r.layer || ""}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>{r.level || ""}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>{r.grave_no || ""}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f1f1" }}>
-                    <button onClick={() => onDelete(r.id)} style={{ padding: "6px 10px", borderRadius: 10, border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}>
-                      Sil
-                    </button>
-                  </td>
+            <div>
+              <label className="text-sm font-semibold text-slate-700">Tabaka</label>
+              <div className="mt-1.5">
+                <Input value={form.layer} onChange={(e) => setForm((p) => ({ ...p, layer: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700">Seviye</label>
+              <div className="mt-1.5">
+                <Input value={form.level} onChange={(e) => setForm((p) => ({ ...p, level: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700">Mezar No</label>
+              <div className="mt-1.5">
+                <Input value={form.grave_no} onChange={(e) => setForm((p) => ({ ...p, grave_no: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700">GIS</label>
+              <div className="mt-1.5">
+                <Input value={form.gis} onChange={(e) => setForm((p) => ({ ...p, gis: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-700">Açıklama</label>
+              <div className="mt-1.5">
+                <Textarea
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 flex flex-wrap items-center gap-2">
+              <Button variant="primary" type="submit">
+                Anakod Oluştur
+              </Button>
+
+              {msg ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  {msg}
+                </div>
+              ) : null}
+
+              {err ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {err}
+                </div>
+              ) : null}
+            </div>
+          </form>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Anakod Listesi</CardTitle>
+          <Button variant="secondary" onClick={refresh}>
+            Yenile
+          </Button>
+        </CardHeader>
+        <CardBody>
+          <div className="overflow-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {["Anakod", "Buluntu Yeri", "PlanKare", "Tabaka", "Seviye", "Mezar No", "Detay"].map((h) => (
+                    <th key={h} className="border-b border-slate-200 px-2 py-2">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-              {!rows.length && (
-                <tr><td colSpan={7} style={{ padding: 12, color: "#666" }}>Henüz kayıt yok.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="border-b border-slate-100 px-2 py-2 font-semibold">{r.code}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.finding_place}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.plan_square || ""}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.layer || ""}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.level || ""}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.grave_no || ""}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" onClick={() => openMainCodeDetail(r)} className="py-1.5">
+                          Görüntüle
+                        </Button>
+                        <Button variant="danger" onClick={() => onDelete(r.id)} className="py-1.5">
+                          Sil
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!rows.length ? (
+                  <tr>
+                    <td colSpan={7} className="px-2 py-6 text-center text-sm text-slate-600">
+                      Kayıt yok.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </CardBody>
+      </Card>
+
+      <MainCodeDetailModal
+        open={mcDetailOpen}
+        onClose={() => {
+          setMcDetailOpen(false);
+          setSelectedMainCode(null);
+        }}
+        mainCode={selectedMainCode}
+        artifacts={mcArtifacts}
+        loading={mcArtifactsLoading}
+        onOpenArtifact={openArtifactDetail}
+      />
+
+      <ArtifactDetailModal
+        open={artifactDetailOpen}
+        onClose={() => {
+          setArtifactDetailOpen(false);
+          setSelectedArtifact(null);
+        }}
+        artifact={selectedArtifact}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { apiGet } from "../api.js";
+import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 
 export default function Dashboard() {
   const [health, setHealth] = useState(null);
@@ -12,14 +13,32 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Dashboard</h1>
-      <p>Bu ekran monorepo iskeletinin çalıştığını doğrular.</p>
-
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 12 }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>API Health</div>
-        {error ? <div style={{ color: "#b00" }}>{error}</div> : <pre style={{ margin: 0 }}>{JSON.stringify(health, null, 2)}</pre>}
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-extrabold">Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Bu ekran monorepo iskeletinin çalıştığını doğrular.
+        </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>API Health</CardTitle>
+        </CardHeader>
+        <CardBody>
+          {error ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : !health ? (
+            <div className="text-sm text-slate-600">Yükleniyor...</div>
+          ) : (
+            <pre className="overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+              {JSON.stringify(health, null, 2)}
+            </pre>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

@@ -15,6 +15,7 @@ class MainCodeSerializer(serializers.ModelSerializer):
 
 class ArtifactSerializer(serializers.ModelSerializer):
     main_code_code = serializers.CharField(source="main_code.code", read_only=True)
+    main_code_finding_place = serializers.CharField(source="main_code.finding_place", read_only=True)
     full_artifact_no = serializers.CharField(read_only=True)
 
     class Meta:
@@ -23,6 +24,7 @@ class ArtifactSerializer(serializers.ModelSerializer):
             "id",
             "main_code",
             "main_code_code",
+            "main_code_finding_place",
             "artifact_no",
             "full_artifact_no",
             "artifact_date",

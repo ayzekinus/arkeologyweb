@@ -70,3 +70,41 @@ Eski Docker imajı çalışıyor olabilir. Tam temizlik:
 docker compose down -v --rmi all --remove-orphans
 docker compose up -d --build --no-cache --force-recreate
 ```
+
+## UI Şema (Schema)
+- `frontend/src/schemas/artifactSchemas.js` Buluntu Detay Modal'ında form alanlarını okunur şekilde render etmek için kullanılır.
+
+
+## Dinamik Buluntu Formu
+- Buluntu oluştur ekranındaki form detayları ve ölçü alanları şema (schema) üzerinden render edilir.
+- Şemalar: `frontend/src/schemas/artifactSchemas.js`
+- Renderer bileşeni: `frontend/src/components/SchemaFields.jsx`
+Bu sayede yeni alan eklemek için çoğu durumda sadece schema dosyasını güncellemek yeterlidir.
+
+
+## Buluntu Düzenle (Edit)
+- Buluntu listesinde "Düzenle" ile kayıt form'a taşınır ve PATCH ile güncellenir.
+- Unique kontrolünde `exclude_id` kullanılır.
+
+## Anakod Detayda Bağlı Buluntular
+- Anakod listesinde "Görüntüle" ile Anakod detay modal açılır.
+- Modal içinde ilgili anakoda bağlı buluntular listelenir (`/api/artifacts/?main_code=<id>`).
+- Buluntu satırında "Görüntüle" ile Buluntu detay modal açılır.
+
+
+## React -> Tailwind dönüşümü (adım adım)
+Bu sürümde Tailwind altyapısı kuruldu ve ortak bileşenler Tailwind'e taşındı:
+- Modal / Row / SchemaFields / Detay Modalları / Layout
+Sonraki adımda sayfa bileşenleri (Anakod, Buluntu, Dashboard) adım adım Tailwind sınıflarına geçirilecektir.
+
+### Frontend bağımlılıkları
+`frontend/package.json` içine Tailwind devDependencies eklendi. Docker build sırasında otomatik kurulur.
+
+
+### Tailwind dönüşümü — v11
+- Dashboard ve Anakod sayfaları Tailwind'e geçirildi.
+- Buluntu sayfası bir sonraki adımda dönüştürülecektir.
+
+
+### Tailwind dönüşümü — v12
+- Buluntu sayfası Tailwind'e geçirildi (create/edit + liste + detay modal).

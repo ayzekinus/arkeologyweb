@@ -34,6 +34,20 @@ export async function apiPost(url, body) {
   return r.json();
 }
 
+export async function apiPut(url, body) {
+  const r = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let payload = null;
+    try { payload = await r.json(); } catch { payload = await r.text(); }
+    throw new Error(parseApiError(payload));
+  }
+  return r.json();
+}
+
 export async function apiPatch(url, body) {
   const r = await fetch(url, {
     method: "PATCH",
