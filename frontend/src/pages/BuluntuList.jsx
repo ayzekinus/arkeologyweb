@@ -28,6 +28,18 @@ function download(url) {
 export default function BuluntuList() {
   const navigate = useNavigate();
 
+  function onExport(id, format, filenameBase) {
+  setMsg("");
+  setErr("");
+  if (!id) {
+    setErr("Export için kayıt id bulunamadı.");
+    return;
+  }
+  const url = `/api/artifacts/${id}/export/?format=${encodeURIComponent(format)}`;
+  download(url);
+  setMsg(`Export başlatıldı: ${(filenameBase || "artifact")}.${format === "xlsx" ? "xlsx" : format}`);
+}
+
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
 
@@ -285,6 +297,20 @@ export default function BuluntuList() {
                         </Button>
                       </div>
                     </td>
+<td className="border-b border-slate-100 px-2 py-2">
+  <div className="flex flex-wrap gap-2">
+    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}>
+      PDF
+    </Button>
+    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}>
+      EXCEL
+    </Button>
+    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "csv", r.full_artifact_no)}>
+      CSV
+    </Button>
+  </div>
+</td>
+
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
                         <Button variant="secondary" className="py-1.5" onClick={() => download(`/api/artifacts/${r.id}/export/?format=csv`)}>
