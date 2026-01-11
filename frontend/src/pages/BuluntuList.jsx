@@ -21,24 +21,17 @@ function buildQuery(params) {
 }
 
 function download(url) {
-  // Force download via navigation (works well with nginx reverse proxy)
-  window.location.href = url;
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export default function BuluntuList() {
   const navigate = useNavigate();
-
-  function onExport(id, format, filenameBase) {
-  setMsg("");
-  setErr("");
-  if (!id) {
-    setErr("Export için kayıt id bulunamadı.");
-    return;
-  }
-  const url = `/api/artifacts/${id}/export/?format=${encodeURIComponent(format)}`;
-  download(url);
-  setMsg(`Export başlatıldı: ${(filenameBase || "artifact")}.${format === "xlsx" ? "xlsx" : format}`);
-}
 
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
@@ -120,6 +113,19 @@ export default function BuluntuList() {
     setDetailOpen(true);
   }
 
+  function onExport(id, format, filenameBase) {
+    setMsg("");
+    setErr("");
+    if (!id) {
+      setErr("Export için kayıt id bulunamadı.");
+      return;
+    }
+    // Optional trailing slash is supported on backend; keep consistent:
+    const url = `/api/artifacts/${id}/export/?format=${encodeURIComponent(format)}`;
+    download(url);
+    setMsg(`Export başlatıldı: ${(filenameBase || "artifact")}.${format === "xlsx" ? "xlsx" : format}`);
+  }
+
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
     setMsg("");
@@ -164,7 +170,13 @@ export default function BuluntuList() {
               <option value="-main_code__code">Anakod: Z → A</option>
             </Select>
 
-            <Select value={String(pageSize)} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(1); }}>
+            <Select
+              value={String(pageSize)}
+              onChange={(e) => {
+                setPageSize(parseInt(e.target.value, 10));
+                setPage(1);
+              }}
+            >
               <option value="25">25 / sayfa</option>
               <option value="50">50 / sayfa</option>
               <option value="100">100 / sayfa</option>
@@ -184,49 +196,76 @@ export default function BuluntuList() {
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Genel Arama</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.q} onChange={(e) => setFilterDraft((p) => ({ ...p, q: e.target.value }))} placeholder="Kod, yer, not, malzeme..." />
+                  <Input
+                    value={filterDraft.q}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, q: e.target.value }))}
+                    placeholder="Kod, yer, not, malzeme..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Anakod</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.main_code_code} onChange={(e) => setFilterDraft((p) => ({ ...p, main_code_code: e.target.value }))} placeholder="AAA" />
+                  <Input
+                    value={filterDraft.main_code_code}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, main_code_code: e.target.value }))}
+                    placeholder="AAA"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Buluntu Yeri</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.finding_place} onChange={(e) => setFilterDraft((p) => ({ ...p, finding_place: e.target.value }))} placeholder="Alan / açma..." />
+                  <Input
+                    value={filterDraft.finding_place}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, finding_place: e.target.value }))}
+                    placeholder="Alan / açma..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Buluntu No</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.artifact_no} onChange={(e) => setFilterDraft((p) => ({ ...p, artifact_no: e.target.value }))} placeholder="1" />
+                  <Input
+                    value={filterDraft.artifact_no}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, artifact_no: e.target.value }))}
+                    placeholder="1"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Yapım Malzemesi</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.production_material} onChange={(e) => setFilterDraft((p) => ({ ...p, production_material: e.target.value }))} placeholder="Seramik, Metal..." />
+                  <Input
+                    value={filterDraft.production_material}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, production_material: e.target.value }))}
+                    placeholder="Seramik, Metal..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Dönem</label>
                 <div className="mt-1.5">
-                  <Input value={filterDraft.period} onChange={(e) => setFilterDraft((p) => ({ ...p, period: e.target.value }))} placeholder="Roma, Bizans..." />
+                  <Input
+                    value={filterDraft.period}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, period: e.target.value }))}
+                    placeholder="Roma, Bizans..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Form</label>
                 <div className="mt-1.5">
-                  <Select value={filterDraft.form_type} onChange={(e) => setFilterDraft((p) => ({ ...p, form_type: e.target.value }))}>
+                  <Select
+                    value={filterDraft.form_type}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, form_type: e.target.value }))}
+                  >
                     <option value="">Hepsi</option>
                     <option value="GENEL">Genel</option>
                     <option value="SIKKE">Sikke</option>
@@ -239,14 +278,22 @@ export default function BuluntuList() {
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Tarih (Başlangıç)</label>
                 <div className="mt-1.5">
-                  <Input type="date" value={filterDraft.date_from} onChange={(e) => setFilterDraft((p) => ({ ...p, date_from: e.target.value }))} />
+                  <Input
+                    type="date"
+                    value={filterDraft.date_from}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, date_from: e.target.value }))}
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Tarih (Bitiş)</label>
                 <div className="mt-1.5">
-                  <Input type="date" value={filterDraft.date_to} onChange={(e) => setFilterDraft((p) => ({ ...p, date_to: e.target.value }))} />
+                  <Input
+                    type="date"
+                    value={filterDraft.date_to}
+                    onChange={(e) => setFilterDraft((p) => ({ ...p, date_to: e.target.value }))}
+                  />
                 </div>
               </div>
             </div>
@@ -266,7 +313,18 @@ export default function BuluntuList() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {["Tam No", "Anakod", "Buluntu Yeri", "Buluntu No", "Buluntu Tarihi", "Form", "Malzeme", "Dönem", "Detay", "Export"].map((h) => (
+                  {[
+                    "Tam No",
+                    "Anakod",
+                    "Buluntu Yeri",
+                    "Buluntu No",
+                    "Buluntu Tarihi",
+                    "Form",
+                    "Malzeme",
+                    "Dönem",
+                    "Detay",
+                    "Export",
+                  ].map((h) => (
                     <th key={h} className="border-b border-slate-200 px-2 py-2">
                       {h}
                     </th>
@@ -279,17 +337,24 @@ export default function BuluntuList() {
                     <td className="border-b border-slate-100 px-2 py-2 font-semibold">{r.full_artifact_no}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.main_code_code || r.main_code}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.main_code_finding_place || ""}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{String(r.artifact_no).padStart(4, "0")}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">
+                      {String(r.artifact_no).padStart(4, "0")}
+                    </td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.artifact_date}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.form_type}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.production_material || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.period || ""}</td>
+
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
                         <Button variant="secondary" className="py-1.5" onClick={() => openDetail(r)}>
                           Görüntüle
                         </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => navigate(`/buluntu/olustur?id=${r.id}`)}>
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => navigate(`/buluntu/olustur?id=${r.id}`)}
+                        >
                           Düzenle
                         </Button>
                         <Button variant="danger" className="py-1.5" onClick={() => onDelete(r.id)}>
@@ -297,30 +362,17 @@ export default function BuluntuList() {
                         </Button>
                       </div>
                     </td>
-<td className="border-b border-slate-100 px-2 py-2">
-  <div className="flex flex-wrap gap-2">
-    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}>
-      PDF
-    </Button>
-    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}>
-      EXCEL
-    </Button>
-    <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "csv", r.full_artifact_no)}>
-      CSV
-    </Button>
-  </div>
-</td>
 
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => download(`/api/artifacts/${r.id}/export/?format=csv`)}>
-                          CSV
-                        </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => download(`/api/artifacts/${r.id}/export/?format=xlsx`)}>
-                          Excel
-                        </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => download(`/api/artifacts/${r.id}/export/?format=pdf`)}>
+                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}>
                           PDF
+                        </Button>
+                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}>
+                          EXCEL
+                        </Button>
+                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "csv", r.full_artifact_no)}>
+                          CSV
                         </Button>
                       </div>
                     </td>

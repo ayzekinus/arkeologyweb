@@ -3,6 +3,7 @@ import Modal from "./Modal.jsx";
 import Row from "./KeyValueRow.jsx";
 import Button from "../ui/Button.jsx";
 import Pagination from "../ui/Pagination.jsx";
+import Input from "../ui/Input.jsx";
 import { apiGet } from "../api.js";
 
 function Panel({ title, children }) {
@@ -35,6 +36,8 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [ordering, setOrdering] = useState("-created_at");
+  const [q, setQ] = useState("");
+  const [qDraft, setQDraft] = useState("");
 
   async function loadArtifacts(nextPage = page) {
     if (!mc?.id) return;
@@ -43,6 +46,7 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
       const q = buildQuery({
         main_code: mc.id,
         ordering,
+        q,
         page: nextPage,
         page_size: pageSize,
       });
@@ -59,8 +63,21 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
   }
 
   // reset paging when mc changes or modal opens
+
+function applySearch() {
+  setQ(String(qDraft || "").trim());
+  setPage(1);
+}
+
+function clearSearch() {
+  setQDraft("");
+  setQ("");
+  setPage(1);
+}
   useEffect(() => {
     if (!open || !mc?.id) return;
+    setQ("");
+    setQDraft("");
     setPage(1);
     loadArtifacts(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +87,7 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
     if (!open || !mc?.id) return;
     loadArtifacts(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, ordering]);
+  }, [page, pageSize, ordering, q]);
 
   return (
     <Modal open={open} title={title} onClose={onClose} width="min(1100px, 100%)">
@@ -93,6 +110,13 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm text-slate-600">
                 Toplam: <span className="font-semibold text-slate-900">{count}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-56">
+                  <Input value={qDraft} onChange={(e) => setQDraft(e.target.value)} placeholder="Buluntu ara (tam no, form, tarih...)" />
+                </div>
+                <Button variant="primary" className="py-2" onClick={applySearch}>Ara</Button>
+                <Button variant="secondary" className="py-2" onClick={clearSearch}>Temizle</Button>
               </div>
               <div className="flex items-center gap-2">
                 <select
