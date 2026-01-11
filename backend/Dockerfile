@@ -5,6 +5,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# System deps (PostgreSQL + WeasyPrint PDF)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -23,7 +24,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
-# collectstatic için klasör
 RUN mkdir -p /app/staticfiles
 
 EXPOSE 8000
