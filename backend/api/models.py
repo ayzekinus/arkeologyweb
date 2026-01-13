@@ -89,6 +89,8 @@ class ArtifactForm(models.Model):
     title = models.CharField(max_length=127)
     description = models.TextField(blank=True, default="")
     order = models.PositiveIntegerField(default=99)
+
+    is_active = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
