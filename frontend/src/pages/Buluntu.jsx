@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost, apiPatch, apiDelete } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import SchemaFields from "../components/SchemaFields.jsx";
-import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
 import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA } from "../schemas/artifactSchemas.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
@@ -9,350 +8,389 @@ import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
-import Pagination from "../ui/Pagination.jsx";
 
 function pad4(n) {
   const s = String(n ?? "").replace(/\D/g, "");
   if (!s) return "";
-  return s.length >= 4 ? s : s.padStart(4, "0");
+  return s.padStart(4, "0").slice(-4);
 }
 
-function buildQuery(params) {
-  const qs = new URLSearchParams();
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v === null || v === undefined) return;
-    const s = String(v).trim();
-    if (!s) return;
-    qs.set(k, s);
-  });
-  return qs.toString();
+function toInt(v) {
+  const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10);
+  return Number.isFinite(n) ? n : null;
 }
+
+function unwrapResults(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.results)) return payload.results;
+  return [];
+}
+
+const FORM_OBJECT_OPTIONS = [
+  "Seramik Parça",
+  "Metal Parça",
+  "Cam Parça",
+  "Mimari Parça",
+  "Sikke",
+  "Figürin",
+  "Terracotta",
+  "Mezar",
+  "Diğer",
+];
+
+const PRODUCTION_MATERIAL_OPTIONS = [
+  "Seramik",
+  "Terracotta",
+  "Figürin",
+  "Metal",
+  "Cam",
+  "Taş",
+  "Kemik",
+  "Diğer",
+];
+
+const PERIOD_OPTIONS = [
+  "Prehistorik",
+  "Arkaik",
+  "Klasik",
+  "Hellenistik",
+  "Roma",
+  "Bizans",
+  "Osmanlı",
+  "Diğer",
+];
 
 export default function Buluntu() {
-  const [rows, setRows] = useState([]);
-  const [count, setCount] = useState(0);
-
   const [anakod, setAnakod] = useState([]);
+  const [forms, setForms] = useState([]);
 
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
-
-  const [uniqueHint, setUniqueHint] = useState("");
-  const [uniqueError, setUniqueError] = useState(false);
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailRow, setDetailRow] = useState(null);
-
-  const [editingId, setEditingId] = useState(null);
-
-  // List controls
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
-  const [ordering, setOrdering] = useState("-created_at");
-
-  const [filters, setFilters] = useState({
-    q: "",
-    main_code_code: "",
-    finding_place: "",
-    artifact_no: "",
-    production_material: "",
-    period: "",
-    form_type: "",
-    date_from: "",
-    date_to: "",
-  });
-
-  const [filterDraft, setFilterDraft] = useState({ ...filters });
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState({ type: "", text: "" });
 
   const [form, setForm] = useState({
     main_code: "",
     artifact_no: "",
     artifact_date: "",
-    form_type: "GENEL",
+    form_type: "",
+
+    form_object: "",
     production_material: "",
+    production_site: "",
     period: "",
-    is_inventory: false,
-    is_active: true,
+
+    other_place_info: "",
+    excavation_inv_no: "",
+    museum_inv_no: "",
+    finding_shape: "",
+    piece_date: "",
+
     notes: "",
     source_and_reference: "",
-    piece_date: "",
+
+    is_inventory: false,
+    is_active: true,
+
     details: {},
     measurements: {},
     images: [],
     drawings: [],
   });
 
-  const fullNoPreview = useMemo(() => {
-    const mc = anakod.find((a) => String(a.id) === String(form.main_code));
-    const code = mc?.code || "";
-    const no = pad4(form.artifact_no);
-    return code && no ? `${code}${no}` : "";
-  }, [anakod, form.main_code, form.artifact_no]);
+  const selectedMainCode = useMemo(() => {
+    const id = String(form.main_code || "");
+    return anakod.find((a) => String(a.id) === id) || null;
+  }, [anakod, form.main_code]);
 
-  async function loadMainCodes() {
-    const data = await apiGet("/api/main-codes/?page_size=500");
-    setAnakod((data.results || data) ?? []);
-  }
+  const effectiveFormType = useMemo(() => {
+    // Local prototype schemas: map newer form keys to closest existing schemas
+    const ft = form.form_type || "GENEL";
+    if (ft === "TERRACOTTA" || ft === "FIGURIN") return "SERAMIK";
+    if (ft === "CAM_METAL") return "GENEL";
+    return ft;
+  }, [form.form_type]);
 
-  async function loadArtifacts(nextPage = page) {
-    setErr("");
-    const q = buildQuery({
-      ...filters,
-      ordering,
-      page: nextPage,
-      page_size: pageSize,
-    });
-
-    const data = await apiGet(`/api/artifacts/?${q}`);
-    const r = data.results || data;
-    setRows(r || []);
-    setCount(data.count ?? (Array.isArray(r) ? r.length : 0));
-  }
-
-  async function refresh() {
-    try {
-      await Promise.all([loadMainCodes(), loadArtifacts(1)]);
-      setPage(1);
-    } catch (e) {
-      setErr(e.message || "Veriler yüklenemedi.");
-    }
-  }
+  const [formSchema, setFormSchema] = useState(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaError, setSchemaError] = useState(null);
 
   useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Re-fetch list when controls change (but not on every draft change; only applied filters)
-  useEffect(() => {
-    loadArtifacts(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, ordering, filters]);
-
-  async function checkUnique(main_code, artifact_no) {
-    const mc = main_code;
-    const noInt = parseInt(pad4(artifact_no), 10);
-    if (!mc || !noInt) {
-      setUniqueHint("");
-      setUniqueError(false);
+    const ft = form.form_type;
+    if (!ft) {
+      setFormSchema(null);
+      setSchemaError(null);
+      setSchemaLoading(false);
       return;
     }
-    try {
-      const res = await apiGet(
-        `/api/artifacts/check-unique/?main_code=${encodeURIComponent(mc)}&artifact_no=${encodeURIComponent(
-          noInt
-        )}${editingId ? `&exclude_id=${encodeURIComponent(editingId)}` : ""}`
-      );
-      if (res.exists) {
-        setUniqueError(true);
-        setUniqueHint("Bu Anakod için bu Buluntu No zaten mevcut.");
-      } else {
-        setUniqueError(false);
-        setUniqueHint("Uygun.");
+
+    (async () => {
+      try {
+        setSchemaLoading(true);
+        setSchemaError(null);
+        const payload = await apiGet(`/api/forms/${ft}/schema/`);
+        setFormSchema(payload);
+      } catch (e) {
+        setFormSchema(null);
+        setSchemaError(e?.message || "Form şeması yüklenemedi.");
+      } finally {
+        setSchemaLoading(false);
       }
-    } catch {
-      setUniqueHint("");
-      setUniqueError(false);
+    })();
+  }, [form.form_type]);
+
+  function adaptFieldDef(fd) {
+    const base = {
+      key: fd.key,
+      label: fd.label || fd.key,
+      required: !!fd.required,
+      readonly: !!fd.readonly,
+      helpText: fd.help_text || "",
+      fullWidth: !!fd.full_width,
+      inputType: fd.data_type === "int" || fd.data_type === "decimal" ? "number" : "text",
+      order: typeof fd.order === "number" ? fd.order : 999,
+    };
+
+    // Measurements: render value + unit (unit stored as "<key>_unit")
+    if (fd.unit_group) {
+      return {
+        ...base,
+        kind: "measure",
+        unitKey: `${fd.key}_unit`,
+        unitType: fd.unit_group,
+        inputType: "number",
+      };
     }
+
+    if (fd.data_type === "text") return { ...base, kind: "textarea" };
+    if (fd.data_type === "bool") return { ...base, kind: "bool" };
+    if (fd.data_type === "date") return { ...base, kind: "date" };
+
+    if (fd.data_type === "multiselect") {
+      return { ...base, kind: "multiselect", options: fd.choices || [] };
+    }
+
+    if (fd.data_type === "choice" || fd.data_type === "select") {
+      // If choices exist, use a select; otherwise fall back to free text for now
+      if (Array.isArray(fd.choices) && fd.choices.length) {
+        return { ...base, kind: "enum", options: fd.choices || [] };
+      }
+      return { ...base, kind: "text" };
+    }
+
+    return { ...base, kind: "text" };
   }
 
+  const dynamicSections = useMemo(() => {
+    // Prefer server-driven schema; fall back to local prototype schemas if missing
+    if (formSchema?.sections?.length) {
+      const out = [];
+      for (const sec of formSchema.sections) {
+        const byBucket = {};
+        for (const fd of sec.fields || []) {
+          const bucket = fd.bucket || "details";
+          byBucket[bucket] ||= [];
+          byBucket[bucket].push(adaptFieldDef(fd));
+        }
+        for (const [bucket, fields] of Object.entries(byBucket)) {
+          fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          out.push({ title: sec.title, bucket, fields });
+        }
+      }
+      return out;
+    }
+
+    // Fallback (local schemas)
+    const out = [];
+    const detailsSchema = DETAILS_SCHEMA[effectiveFormType] || [];
+    if (detailsSchema.length) out.push({ title: "Form Detayları", bucket: "details", fields: detailsSchema });
+    if (MEASUREMENT_SCHEMA?.length) out.push({ title: "Ölçü Bilgileri", bucket: "measurements", fields: MEASUREMENT_SCHEMA });
+    return out;
+  }, [formSchema, effectiveFormType]);
+
+  function renderDynamicFormSections() {
+    if (schemaLoading) {
+      return (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Form şeması yükleniyor...
+        </div>
+      );
+    }
+
+    if (schemaError) {
+      return (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          {schemaError}
+        </div>
+      );
+    }
+
+    if (!dynamicSections.length) return null;
+
+    return dynamicSections.map((sec, idx) => {
+      const bucketData = sec.bucket === "measurements" ? form.measurements : form.details;
+      const onBucketChange =
+        sec.bucket === "measurements"
+          ? (key, value) =>
+              setForm((prev) => ({ ...prev, measurements: { ...(prev.measurements || {}), [key]: value } }))
+          : (key, value) =>
+              setForm((prev) => ({ ...prev, details: { ...(prev.details || {}), [key]: value } }));
+
+      return (
+        <SchemaFields
+          key={`${sec.title}-${sec.bucket}-${idx}`}
+          title={sec.title}
+          schema={sec.fields}
+          data={bucketData || {}}
+          onChange={onBucketChange}
+        />
+      );
+    });
+  }
+
+
   useEffect(() => {
-    checkUnique(form.main_code, form.artifact_no);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.main_code, form.artifact_no, editingId]);
+    (async () => {
+      try {
+        // Main codes for select
+        const mc = await apiGet("/api/main-codes/?page_size=1000&ordering=code");
+        setAnakod(unwrapResults(mc));
+
+        // Forms (admin-managed)
+        const f = await apiGet("/api/forms/?page_size=200&ordering=order");
+        const fr = unwrapResults(f);
+        setForms(fr);
+
+        // Default form type: first form (or GENEL)
+        if (fr.length) {
+          setForm((p) => ({ ...p, form_type: p.form_type || fr[0].key }));
+        } else {
+          setForm((p) => ({ ...p, form_type: p.form_type || "GENEL" }));
+        }
+      } catch (e) {
+        setMsg({ type: "error", text: e.message || "Veriler yüklenemedi." });
+      }
+    })();
+  }, []);
+
+  function setField(k, v) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
 
   function setDetail(k, v) {
     setForm((p) => ({ ...p, details: { ...(p.details || {}), [k]: v } }));
   }
-  function setMeasure(k, v) {
+
+  function setMeasurement(k, v) {
     setForm((p) => ({ ...p, measurements: { ...(p.measurements || {}), [k]: v } }));
   }
 
-  function renderFormFields() {
-    const schema = DETAILS_SCHEMA[form.form_type] || [];
-    if (!schema.length) return null;
-    const title = form.form_type === "GENEL" ? "Form Detayları" : `${form.form_type} Detayları`;
-    return <SchemaFields title={title} schema={schema} data={form.details || {}} onChange={setDetail} />;
-  }
-
-  function renderMeasurements() {
-    return (
-      <SchemaFields
-        title="Ölçü Bilgileri"
-        schema={MEASUREMENT_SCHEMA}
-        data={form.measurements || {}}
-        onChange={setMeasure}
-      />
-    );
-  }
-
-  async function onSubmit(e) {
+  async function onSave(e) {
     e.preventDefault();
-    setMsg("");
-    setErr("");
+    setMsg({ type: "", text: "" });
 
-    const no = pad4(form.artifact_no);
-    if (!form.main_code || !no || !form.artifact_date) {
-      setErr("Anakod, Buluntu No ve Buluntu Tarihi zorunludur.");
-      return;
-    }
-    if (uniqueError) {
-      setErr("Buluntu No benzersiz olmalıdır. Lütfen farklı bir numara deneyin.");
-      return;
-    }
+    const mcId = toInt(form.main_code);
+    const no = toInt(form.artifact_no);
+    if (!mcId) return setMsg({ type: "error", text: "Anakod zorunludur." });
+    if (!no) return setMsg({ type: "error", text: "Buluntu No zorunludur." });
+    if (!form.artifact_date) return setMsg({ type: "error", text: "Buluntu Tarihi zorunludur." });
+    if (!form.form_type) return setMsg({ type: "error", text: "Form zorunludur." });
+    if (!form.form_object) return setMsg({ type: "error", text: "Form/Obje zorunludur." });
+    if (!form.production_material) return setMsg({ type: "error", text: "Yapım Malzemesi zorunludur." });
 
-    const payload = { ...form, artifact_no: parseInt(no, 10) };
-
+    setLoading(true);
     try {
-      let saved = null;
-      if (editingId) {
-        saved = await apiPatch(`/api/artifacts/${editingId}/`, payload);
-        setMsg(`${saved.full_artifact_no} buluntu başarı ile güncellendi.`);
-      } else {
-        saved = await apiPost("/api/artifacts/", payload);
-        setMsg(`${saved.full_artifact_no} buluntu başarı ile kaydedildi.`);
+      // Best-effort uniqueness check (endpoint may not exist in early envs)
+      try {
+        await apiGet(`/api/artifacts/check-unique/?main_code=${mcId}&artifact_no=${no}`);
+      } catch {
+        // ignore; server will validate on POST
       }
 
-      // Refresh list but keep current page/filters
-      await loadArtifacts(page);
+      const payload = {
+        main_code: mcId,
+        artifact_no: no,
+        artifact_date: form.artifact_date,
+        form_type: form.form_type,
 
-      if (editingId) setEditingId(null);
+        form_object: form.form_object || null,
+        production_material: form.production_material || null,
+        production_site: form.production_site || null,
+        period: form.period || null,
 
-      setForm((prev) => ({
-        main_code: prev.main_code,
+        other_place_info: form.other_place_info || null,
+        excavation_inv_no: form.excavation_inv_no || null,
+        museum_inv_no: form.museum_inv_no || null,
+        finding_shape: form.finding_shape || null,
+        piece_date: form.piece_date || null,
+
+        notes: form.notes || null,
+        source_and_reference: form.source_and_reference || null,
+
+        is_inventory: !!form.is_inventory,
+        is_active: !!form.is_active,
+
+        details: form.details || {},
+        measurements: form.measurements || {},
+        images: form.images || [],
+        drawings: form.drawings || [],
+      };
+
+      const saved = await apiPost("/api/artifacts/", payload);
+      const fullNo = saved?.full_artifact_no || `${saved?.main_code_code || ""}${pad4(saved?.artifact_no || no)}`;
+      setMsg({ type: "success", text: `${fullNo} buluntu numarası başarıyla kayıt edildi.` });
+
+      // Reset most fields; keep Anakod + Form for rapid data entry
+      setForm((p) => ({
+        ...p,
         artifact_no: "",
         artifact_date: "",
-        form_type: "GENEL",
-        production_material: "",
-        period: "",
-        is_inventory: false,
-        is_active: true,
+        form_object: "",
+        other_place_info: "",
+        excavation_inv_no: "",
+        museum_inv_no: "",
+        finding_shape: "",
+        piece_date: "",
         notes: "",
         source_and_reference: "",
-        piece_date: "",
         details: {},
         measurements: {},
         images: [],
         drawings: [],
       }));
-      setUniqueHint("");
-      setUniqueError(false);
-    } catch (e3) {
-      setErr(e3.message || "İşlem başarısız.");
+    } catch (e2) {
+      setMsg({ type: "error", text: e2.message || "Kayıt başarısız." });
+    } finally {
+      setLoading(false);
     }
-  }
-
-  function startEdit(row) {
-    setMsg("");
-    setErr("");
-    setEditingId(row.id);
-    setForm({
-      main_code: row.main_code ?? "",
-      artifact_no: row.artifact_no ?? "",
-      artifact_date: row.artifact_date ?? "",
-      form_type: row.form_type ?? "GENEL",
-      production_material: row.production_material ?? "",
-      period: row.period ?? "",
-      is_inventory: !!row.is_inventory,
-      is_active: row.is_active !== false,
-      notes: row.notes ?? "",
-      source_and_reference: row.source_and_reference ?? "",
-      piece_date: row.piece_date ?? "",
-      details: row.details || {},
-      measurements: row.measurements || {},
-      images: row.images || [],
-      drawings: row.drawings || [],
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setMsg("");
-    setErr("");
-    setForm((prev) => ({
-      ...prev,
-      artifact_no: "",
-      artifact_date: "",
-      form_type: "GENEL",
-      production_material: "",
-      period: "",
-      is_inventory: false,
-      is_active: true,
-      notes: "",
-      source_and_reference: "",
-      piece_date: "",
-      details: {},
-      measurements: {},
-      images: [],
-      drawings: [],
-    }));
-    setUniqueHint("");
-    setUniqueError(false);
-  }
-
-  function openDetail(row) {
-    setDetailRow(row);
-    setDetailOpen(true);
-  }
-
-  async function onDelete(id) {
-    if (!confirm("Silmek istediğinize emin misiniz?")) return;
-    setMsg("");
-    setErr("");
-    try {
-      await apiDelete(`/api/artifacts/${id}/`);
-      setMsg("Kayıt silindi.");
-      await loadArtifacts(page);
-    } catch (e) {
-      setErr(e.message || "Silme başarısız.");
-    }
-  }
-
-  function applyFilters() {
-    setFilters({ ...filterDraft });
-    setPage(1);
-  }
-
-  function clearFilters() {
-    const empty = {
-      q: "",
-      main_code_code: "",
-      finding_place: "",
-      artifact_no: "",
-      production_material: "",
-      period: "",
-      form_type: "",
-      date_from: "",
-      date_to: "",
-    };
-    setFilterDraft(empty);
-    setFilters(empty);
-    setPage(1);
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-extrabold">Buluntu</h1>
-        <p className="mt-1 text-sm text-slate-600">Buluntu oluşturma, düzenleme ve listeleme.</p>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Buluntu Oluştur</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingId ? "Buluntu Güncelle" : "Buluntu Oluştur"}</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <form onSubmit={onSubmit} className="space-y-4">
+      {msg.text ? (
+        <div
+          className={`rounded-xl border p-3 text-sm ${
+            msg.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
+          {msg.text}
+        </div>
+      ) : null}
+
+      <form onSubmit={onSave} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Genel Bilgiler</CardTitle>
+          </CardHeader>
+          <CardBody>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
                 <label className="text-sm font-semibold text-slate-700">Anakod</label>
                 <div className="mt-1.5">
-                  <Select
-                    required
-                    value={form.main_code}
-                    onChange={(e) => setForm((p) => ({ ...p, main_code: e.target.value }))}
-                  >
+                  <Select required value={form.main_code} onChange={(e) => setField("main_code", e.target.value)}>
                     <option value="">Seçiniz...</option>
                     {anakod.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -364,50 +402,90 @@ export default function Buluntu() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-700">Buluntu Numarası</label>
+                <label className="text-sm font-semibold text-slate-700">Buluntu No</label>
                 <div className="mt-1.5">
-                  <Input
-                    required
-                    value={pad4(form.artifact_no)}
-                    onChange={(e) => setForm((p) => ({ ...p, artifact_no: e.target.value }))}
-                    placeholder="0001"
-                  />
+                  <Input required value={pad4(form.artifact_no)} onChange={(e) => setField("artifact_no", e.target.value)} placeholder="0001" />
                 </div>
-                {fullNoPreview ? (
-                  <div className="mt-1 text-xs text-slate-500">
-                    Önizleme: <span className="font-semibold text-slate-800">{fullNoPreview}</span>
-                  </div>
-                ) : null}
-                {uniqueHint ? (
-                  <div className={`mt-1 text-xs ${uniqueError ? "text-rose-700" : "text-emerald-700"}`}>
-                    {uniqueHint}
-                  </div>
-                ) : null}
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Tarihi</label>
                 <div className="mt-1.5">
-                  <Input
-                    type="date"
-                    required
-                    value={form.artifact_date}
-                    onChange={(e) => setForm((p) => ({ ...p, artifact_date: e.target.value }))}
-                  />
+                  <Input required type="date" value={form.artifact_date} onChange={(e) => setField("artifact_date", e.target.value)} />
                 </div>
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">Form</label>
                 <div className="mt-1.5">
-                  <Select
-                    value={form.form_type}
-                    onChange={(e) => setForm((p) => ({ ...p, form_type: e.target.value, details: {} }))}
-                  >
-                    <option value="GENEL">Genel</option>
-                    <option value="SIKKE">Sikke</option>
-                    <option value="SERAMIK">Seramik</option>
-                    <option value="MEZAR">Mezar</option>
+                  <Select required value={form.form_type} onChange={(e) => setField("form_type", e.target.value)}>
+                    <option value="">Seçiniz...</option>
+                    {forms.length ? (
+                      forms.map((f) => (
+                        <option key={f.key} value={f.key}>
+                          {f.title}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="GENEL">Genel</option>
+                        <option value="SIKKE">Sikke</option>
+                        <option value="SERAMIK">Seramik</option>
+                        <option value="TERRACOTTA">Terracotta</option>
+                        <option value="FIGURIN">Figürin</option>
+                        <option value="MEZAR">Mezar</option>
+                        <option value="CAM_METAL">Cam / Metal</option>
+                      </>
+                    )}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Buluntu Yeri (Anakod)</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.finding_place || ""} readOnly placeholder="Anakod seçiniz" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">PlanKare (Anakod)</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.plan_square || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Tabaka (Anakod)</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.layer || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Seviye (Anakod)</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.level || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Mezar No (Anakod)</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.grave_no || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Form/Obje</label>
+                <div className="mt-1.5">
+                  <Select required value={form.form_object} onChange={(e) => setField("form_object", e.target.value)}>
+                    <option value="">Seçiniz...</option>
+                    {FORM_OBJECT_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
                   </Select>
                 </div>
               </div>
@@ -415,272 +493,126 @@ export default function Buluntu() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Yapım Malzemesi</label>
                 <div className="mt-1.5">
-                  <Input
-                    value={form.production_material}
-                    onChange={(e) => setForm((p) => ({ ...p, production_material: e.target.value }))}
-                  />
+                  <Select required value={form.production_material} onChange={(e) => setField("production_material", e.target.value)}>
+                    <option value="">Seçiniz...</option>
+                    {PRODUCTION_MATERIAL_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Üretim Yeri</label>
+                <div className="mt-1.5">
+                  <Input value={form.production_site} onChange={(e) => setField("production_site", e.target.value)} placeholder="(opsiyonel)" />
                 </div>
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">Dönem</label>
                 <div className="mt-1.5">
-                  <Input value={form.period} onChange={(e) => setForm((p) => ({ ...p, period: e.target.value }))} />
+                  <Select value={form.period} onChange={(e) => setField("period", e.target.value)}>
+                    <option value="">Seçiniz...</option>
+                    {PERIOD_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Buluntu Şekli</label>
+                <div className="mt-1.5">
+                  <Input value={form.finding_shape} onChange={(e) => setField("finding_shape", e.target.value)} />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Kazı Env. No</label>
+                <div className="mt-1.5">
+                  <Input value={form.excavation_inv_no} onChange={(e) => setField("excavation_inv_no", e.target.value)} />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Müze Env. No</label>
+                <div className="mt-1.5">
+                  <Input value={form.museum_inv_no} onChange={(e) => setField("museum_inv_no", e.target.value)} />
                 </div>
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">Eser Tarihi</label>
                 <div className="mt-1.5">
-                  <Input value={form.piece_date} onChange={(e) => setForm((p) => ({ ...p, piece_date: e.target.value }))} />
+                  <Input value={form.piece_date} onChange={(e) => setField("piece_date", e.target.value)} placeholder="(metin)" />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-6">
-                <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!form.is_inventory}
-                    onChange={(e) => setForm((p) => ({ ...p, is_inventory: e.target.checked }))}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  Envanterlik
-                </label>
-
-                <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!form.is_active}
-                    onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  Aktif
-                </label>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Kaynak / Referans</label>
+              <div>
+                <label className="text-sm font-semibold text-slate-700">B. Yeri Diğer</label>
                 <div className="mt-1.5">
-                  <Textarea
-                    rows={3}
-                    value={form.source_and_reference}
-                    onChange={(e) => setForm((p) => ({ ...p, source_and_reference: e.target.value }))}
-                  />
+                  <Input value={form.other_place_info} onChange={(e) => setField("other_place_info", e.target.value)} />
                 </div>
               </div>
 
               <div className="md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700">Notlar / Açıklama</label>
                 <div className="mt-1.5">
-                  <Textarea rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+                  <Textarea value={form.notes} onChange={(e) => setField("notes", e.target.value)} rows={3} />
                 </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">Kaynak / Referans</label>
+                <div className="mt-1.5">
+                  <Textarea value={form.source_and_reference} onChange={(e) => setField("source_and_reference", e.target.value)} rows={3} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="is_inventory"
+                  type="checkbox"
+                  checked={!!form.is_inventory}
+                  onChange={(e) => setField("is_inventory", e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                <label htmlFor="is_inventory" className="text-sm font-semibold text-slate-700">
+                  Envanterlik
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="is_active"
+                  type="checkbox"
+                  checked={!!form.is_active}
+                  onChange={(e) => setField("is_active", e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                <label htmlFor="is_active" className="text-sm font-semibold text-slate-700">
+                  Aktif
+                </label>
               </div>
             </div>
+          </CardBody>
+        </Card>
 
-            {renderFormFields()}
-            {renderMeasurements()}
+        {renderDynamicFormSections()}
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="primary" type="submit">
-                {editingId ? "Buluntu Güncelle" : "Buluntu Kaydet"}
-              </Button>
+        
 
-              {editingId ? (
-                <Button variant="secondary" type="button" onClick={cancelEdit}>
-                  İptal
-                </Button>
-              ) : null}
-
-              {msg ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  {msg}
-                </div>
-              ) : null}
-
-              {err ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {err}
-                </div>
-              ) : null}
-            </div>
-          </form>
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Buluntu Listesi</CardTitle>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={ordering} onChange={(e) => setOrdering(e.target.value)}>
-              <option value="-created_at">Sıralama: Yeni → Eski</option>
-              <option value="created_at">Sıralama: Eski → Yeni</option>
-              <option value="-artifact_date">Buluntu Tarihi: Yeni → Eski</option>
-              <option value="artifact_date">Buluntu Tarihi: Eski → Yeni</option>
-              <option value="-artifact_no">Buluntu No: Büyük → Küçük</option>
-              <option value="artifact_no">Buluntu No: Küçük → Büyük</option>
-              <option value="main_code__code">Anakod: A → Z</option>
-              <option value="-main_code__code">Anakod: Z → A</option>
-            </Select>
-
-            <Select value={String(pageSize)} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(1); }}>
-              <option value="25">25 / sayfa</option>
-              <option value="50">50 / sayfa</option>
-              <option value="100">100 / sayfa</option>
-              <option value="200">200 / sayfa</option>
-            </Select>
-
-            <Button variant="secondary" onClick={() => refresh()}>
-              Yenile
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardBody className="space-y-3">
-          {/* Filters */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Genel Arama</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.q} onChange={(e) => setFilterDraft((p) => ({ ...p, q: e.target.value }))} placeholder="Kod, yer, not, malzeme..." />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Anakod</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.main_code_code} onChange={(e) => setFilterDraft((p) => ({ ...p, main_code_code: e.target.value }))} placeholder="AAA" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Buluntu Yeri</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.finding_place} onChange={(e) => setFilterDraft((p) => ({ ...p, finding_place: e.target.value }))} placeholder="Alan / açma..." />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Buluntu No</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.artifact_no} onChange={(e) => setFilterDraft((p) => ({ ...p, artifact_no: e.target.value }))} placeholder="1" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Yapım Malzemesi</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.production_material} onChange={(e) => setFilterDraft((p) => ({ ...p, production_material: e.target.value }))} placeholder="Seramik, Metal..." />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Dönem</label>
-                <div className="mt-1.5">
-                  <Input value={filterDraft.period} onChange={(e) => setFilterDraft((p) => ({ ...p, period: e.target.value }))} placeholder="Roma, Bizans..." />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Form</label>
-                <div className="mt-1.5">
-                  <Select value={filterDraft.form_type} onChange={(e) => setFilterDraft((p) => ({ ...p, form_type: e.target.value }))}>
-                    <option value="">Hepsi</option>
-                    <option value="GENEL">Genel</option>
-                    <option value="SIKKE">Sikke</option>
-                    <option value="SERAMIK">Seramik</option>
-                    <option value="MEZAR">Mezar</option>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Tarih (Başlangıç)</label>
-                <div className="mt-1.5">
-                  <Input type="date" value={filterDraft.date_from} onChange={(e) => setFilterDraft((p) => ({ ...p, date_from: e.target.value }))} />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Tarih (Bitiş)</label>
-                <div className="mt-1.5">
-                  <Input type="date" value={filterDraft.date_to} onChange={(e) => setFilterDraft((p) => ({ ...p, date_to: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button variant="primary" type="button" onClick={applyFilters}>
-                Filtrele
-              </Button>
-              <Button variant="secondary" type="button" onClick={clearFilters}>
-                Temizle
-              </Button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {["Tam No", "Anakod", "Buluntu Yeri", "Buluntu No", "Buluntu Tarihi", "Form", "Malzeme", "Dönem", "Detay"].map((h) => (
-                    <th key={h} className="border-b border-slate-200 px-2 py-2">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="border-b border-slate-100 px-2 py-2 font-semibold">{r.full_artifact_no}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.main_code_code || r.main_code}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.main_code_finding_place || ""}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{String(r.artifact_no).padStart(4, "0")}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.artifact_date}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.form_type}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.production_material || ""}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.period || ""}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => openDetail(r)}>
-                          Görüntüle
-                        </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => startEdit(r)}>
-                          Düzenle
-                        </Button>
-                        <Button variant="danger" className="py-1.5" onClick={() => onDelete(r.id)}>
-                          Sil
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!rows.length ? (
-                  <tr>
-                    <td colSpan={9} className="px-2 py-6 text-center text-sm text-slate-600">
-                      Kayıt yok.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-
-          <Pagination page={page} pageSize={pageSize} count={count} onPageChange={(p) => setPage(Math.max(1, p))} />
-        </CardBody>
-      </Card>
-
-      <ArtifactDetailModal
-        open={detailOpen}
-        artifact={detailRow}
-        onClose={() => {
-          setDetailOpen(false);
-          setDetailRow(null);
-        }}
-      />
+        <div className="flex justify-end">
+          <Button type="submit" disabled={loading}>
+            {loading ? "Kaydediliyor..." : "Buluntu Kaydet"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

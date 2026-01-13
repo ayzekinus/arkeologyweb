@@ -102,4 +102,7 @@ export const DETAILS_SCHEMA = {
     { key: "direction", label: "Yön", kind: "text" },
     { key: "grave_artifacts", label: "Mezar Buluntuları", kind: "textarea", fullWidth: true },
   ],
+  TERRACOTTA: SERAMIK,
+  FIGURIN: SERAMIK,
+  CAM_METAL: GENEL,
 };

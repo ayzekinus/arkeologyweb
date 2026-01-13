@@ -1,146 +1,205 @@
-import React from "react";
-import Modal from "./Modal.jsx";
-import Row from "./KeyValueRow.jsx";
-import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA, ENUMS } from "../schemas/artifactSchemas.js";
-
-function formatEnum(enumKey, value) {
-  if (value === null || value === undefined || value === "") return "";
-  const map = ENUMS[enumKey] || {};
-  const k = String(value);
-  return map[k] ?? map[Number(k)] ?? String(value);
-}
-
-function formatValueWithUnit(obj, key, unitKey) {
-  const v = obj?.[key];
-  const u = obj?.[unitKey];
-  if (v === null || v === undefined || v === "") return "";
-  return [v, u].filter(Boolean).join(" ");
-}
-
-function pickExtraPairs(obj, usedKeys) {
-  const extras = [];
-  if (!obj || typeof obj !== "object") return extras;
-  for (const [k, v] of Object.entries(obj)) {
-    if (usedKeys.has(k)) continue;
-    if (v === null || v === undefined || v === "") continue;
-    extras.push([k, v]);
-  }
-  return extras;
-}
+import React, { useEffect, useMemo, useState } from "react";
+import Modal from "../ui/Modal.jsx";
+import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA, ENUMS, UNITS } from "../schemas/artifactSchemas.js";
+import KeyValueRow from "./KeyValueRow.jsx";
+import { apiGet } from "../api";
 
 function Section({ title, children }) {
   return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="mb-2 font-extrabold">{title}</div>
-      {children}
+    <div className="mb-6">
+      <div className="mb-2 text-sm font-semibold text-slate-900">{title}</div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">{children}</div>
     </div>
   );
 }
 
-function DetailsPretty({ row }) {
-  const d = row?.details || {};
-  const schema = DETAILS_SCHEMA[row?.form_type] || [];
-  const used = new Set();
-  const rows = [];
-
-  for (const f of schema) {
-    used.add(f.key);
-    if (f.unitKey) used.add(f.unitKey);
-
-    let val = "";
-    if (f.enumKey) val = formatEnum(f.enumKey, d[f.key]);
-    else if (f.unitKey) val = formatValueWithUnit(d, f.key, f.unitKey);
-    else val = d[f.key];
-
-    if (val === null || val === undefined || val === "") continue;
-    rows.push(<Row key={f.key} label={f.label} value={String(val)} />);
-  }
-
-  const extras = pickExtraPairs(d, used);
-  if (!rows.length && !extras.length) return null;
-
-  return (
-    <Section title="Form Detayları">
-      {rows.length ? rows : <div className="text-sm text-slate-600">Bu forma ait detay bilgisi yok.</div>}
-      {extras.length ? (
-        <div className="mt-3 border-t border-dashed border-slate-200 pt-3">
-          <div className="mb-2 text-sm font-extrabold">Ek Alanlar</div>
-          {extras.map(([k, v]) => (
-            <Row key={k} label={k} value={typeof v === "object" ? JSON.stringify(v) : String(v)} />
-          ))}
-        </div>
-      ) : null}
-    </Section>
-  );
+function normalizeOptions(options) {
+  if (!Array.isArray(options)) return [];
+  return options
+    .map((o) => {
+      if (o == null) return null;
+      if (typeof o === "string" || typeof o === "number") return { value: o, label: String(o) };
+      if (typeof o === "object") return { value: o.value, label: o.label ?? String(o.value) };
+      return null;
+    })
+    .filter(Boolean);
 }
 
-function MeasurementsPretty({ row }) {
-  const m = row?.measurements || {};
-  const used = new Set();
-  const rows = [];
+function findLabel(options, value) {
+  const opts = normalizeOptions(options);
+  const v = String(value);
+  const hit = opts.find((o) => String(o.value) === v);
+  return hit ? hit.label : value;
+}
 
-  for (const f of MEASUREMENT_SCHEMA) {
-    used.add(f.key);
-    if (f.unitKey) used.add(f.unitKey);
-    const val = formatValueWithUnit(m, f.key, f.unitKey);
-    if (!val) continue;
-    rows.push(<Row key={f.key} label={f.label} value={val} />);
+function adaptFieldDef(fd) {
+  const base = {
+    key: fd.key,
+    label: fd.label || fd.key,
+    required: !!fd.required,
+    readonly: !!fd.readonly,
+    helpText: fd.help_text || "",
+    fullWidth: !!fd.full_width,
+    order: typeof fd.order === "number" ? fd.order : 999,
+  };
+
+  if (fd.unit_group) {
+    return { ...base, kind: "measure", unitKey: `${fd.key}_unit`, unitType: fd.unit_group };
+  }
+  if (fd.data_type === "text") return { ...base, kind: "textarea" };
+  if (fd.data_type === "bool") return { ...base, kind: "bool" };
+  if (fd.data_type === "date") return { ...base, kind: "date" };
+  if (fd.data_type === "multiselect") return { ...base, kind: "multiselect", options: fd.choices || [] };
+  if (fd.data_type === "choice" || fd.data_type === "select") {
+    if (Array.isArray(fd.choices) && fd.choices.length) return { ...base, kind: "enum", options: fd.choices || [] };
+    return { ...base, kind: "text" };
+  }
+  return { ...base, kind: "text" };
+}
+
+function formatValue(field, bucketData) {
+  const data = bucketData || {};
+  const v = data[field.key];
+
+  if (v === undefined || v === null || v === "") return "";
+
+  // measure = value + unit
+  if (field.kind === "measure" || field.unitKey) {
+    const unitKey = field.unitKey || `${field.key}_unit`;
+    const unitType = field.unitType || "length";
+    const unitValue = data[unitKey];
+    const units = UNITS[unitType] || UNITS.length || [];
+    const unitLabel = units.find((u) => String(u.value) === String(unitValue))?.label || unitValue || "";
+    return unitLabel ? `${v} ${unitLabel}` : String(v);
   }
 
-  const extras = pickExtraPairs(m, used);
-  if (!rows.length && !extras.length) return null;
+  if (field.kind === "bool") return v ? "Evet" : "Hayır";
 
-  return (
-    <Section title="Ölçü Bilgileri">
-      {rows.length ? rows : <div className="text-sm text-slate-600">Ölçü bilgisi yok.</div>}
-      {extras.length ? (
-        <div className="mt-3 border-t border-dashed border-slate-200 pt-3">
-          <div className="mb-2 text-sm font-extrabold">Ek Ölçüler</div>
-          {extras.map(([k, v]) => (
-            <Row key={k} label={k} value={typeof v === "object" ? JSON.stringify(v) : String(v)} />
-          ))}
-        </div>
-      ) : null}
-    </Section>
-  );
+  if (field.kind === "multiselect") {
+    const arr = Array.isArray(v) ? v : [v];
+    return arr.map((x) => findLabel(field.options || [], x)).join(", ");
+  }
+
+  if (field.kind === "enum") return findLabel(field.options || (field.enumKey ? ENUMS[field.enumKey] : []), v);
+
+  if (typeof v === "object") return JSON.stringify(v);
+
+  return String(v);
 }
 
 export default function ArtifactDetailModal({ open, onClose, artifact }) {
-  const row = artifact || null;
-  const title = row ? `Buluntu Detay — ${row.full_artifact_no || row.id}` : "Buluntu Detay";
+  const [formSchema, setFormSchema] = useState(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+
+  // Map legacy form types to the schema group used in the prototype
+  const effectiveFormType = useMemo(() => {
+    const ft = artifact?.form_type || "";
+    if (ft === "TERRACOTTA") return "SERAMIK";
+    if (ft === "FIGURIN") return "SERAMIK";
+    return ft;
+  }, [artifact?.form_type]);
+
+  useEffect(() => {
+    const ft = artifact?.form_type;
+    if (!open || !ft) {
+      setFormSchema(null);
+      setSchemaLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        setSchemaLoading(true);
+        const payload = await apiGet(`/api/forms/${ft}/schema/`);
+        setFormSchema(payload);
+      } catch {
+        setFormSchema(null);
+      } finally {
+        setSchemaLoading(false);
+      }
+    })();
+  }, [open, artifact?.form_type]);
+
+  const dynamicSections = useMemo(() => {
+    if (formSchema?.sections?.length) {
+      const out = [];
+      for (const sec of formSchema.sections) {
+        const byBucket = {};
+        for (const fd of sec.fields || []) {
+          const bucket = fd.bucket || "details";
+          byBucket[bucket] ||= [];
+          byBucket[bucket].push(adaptFieldDef(fd));
+        }
+        for (const [bucket, fields] of Object.entries(byBucket)) {
+          fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          out.push({ title: sec.title, bucket, fields });
+        }
+      }
+      return out;
+    }
+
+    const out = [];
+    const detailsSchema = DETAILS_SCHEMA[effectiveFormType] || [];
+    if (detailsSchema.length) out.push({ title: "Form Detayları", bucket: "details", fields: detailsSchema });
+    if (MEASUREMENT_SCHEMA?.length) out.push({ title: "Ölçü Bilgileri", bucket: "measurements", fields: MEASUREMENT_SCHEMA });
+    return out;
+  }, [formSchema, effectiveFormType]);
 
   return (
-    <Modal open={open} title={title} onClose={onClose}>
-      {!row ? (
-        <div className="text-sm text-slate-600">Kayıt seçilmedi.</div>
-      ) : (
+    <Modal open={open} onClose={onClose} title="Buluntu Detay">
+      {artifact ? (
         <>
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-slate-500">Anakod</div>
+              <div className="text-sm font-semibold text-slate-900">{artifact?.main_code_display || "-"}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-slate-500">Buluntu No</div>
+              <div className="text-sm font-semibold text-slate-900">{artifact?.artifact_no || "-"}</div>
+            </div>
+          </div>
+
           <Section title="Genel Bilgiler">
-            <Row label="Tam Buluntu No" value={row.full_artifact_no} />
-            <Row label="Anakod" value={row.main_code_code || row.main_code} />
-            <Row label="Buluntu No" value={String(row.artifact_no ?? "").padStart(4, "0")} />
-            <Row label="Buluntu Tarihi" value={row.artifact_date} />
-            <Row label="Form" value={row.form_type} />
-            <Row label="Yapım Malzemesi" value={row.production_material || ""} />
-            <Row label="Dönem" value={row.period || ""} />
-            <Row label="Eser Tarihi" value={row.piece_date || ""} />
-            <Row label="Kaynak / Referans" value={row.source_and_reference || ""} />
-            <Row label="Notlar" value={row.notes || ""} />
-            <Row label="Envanterlik" value={row.is_inventory ? "Evet" : "Hayır"} />
-            <Row label="Aktif" value={row.is_active ? "Evet" : "Hayır"} />
+            <KeyValueRow label="Form Türü" value={artifact?.form_type || ""} />
+            <KeyValueRow label="Buluntu Tarihi" value={artifact?.finding_date || ""} />
+            <KeyValueRow label="Buluntu Yeri" value={artifact?.finding_place || ""} />
+            <KeyValueRow label="Plankare" value={artifact?.plankare || ""} />
+            <KeyValueRow label="Tabaka" value={artifact?.layer || ""} />
+            <KeyValueRow label="Seviye" value={artifact?.level || ""} />
+            <KeyValueRow label="Mezar No" value={artifact?.grave_no || ""} />
+            <KeyValueRow label="Kazı Env. No" value={artifact?.excavation_inv_no || ""} />
+            <KeyValueRow label="Müze Env. No" value={artifact?.museum_inv_no || ""} />
+            <KeyValueRow label="Form/Obje" value={artifact?.form_object || ""} />
+            <KeyValueRow label="Yapım Malzemesi" value={artifact?.production_material || ""} />
+            <KeyValueRow label="Buluntu Şekli" value={artifact?.finding_shape || ""} />
+            <KeyValueRow label="Üretim Yeri" value={artifact?.production_site || ""} />
+            <KeyValueRow label="Dönem" value={artifact?.period || ""} />
+            <KeyValueRow label="Eser Tarihi" value={artifact?.artifact_date || ""} />
+            <KeyValueRow label="B. Yeri Diğer" value={artifact?.other_place_info || ""} />
+            {"is_inventory" in artifact ? (
+              <KeyValueRow label="Envanterlik" value={artifact?.is_inventory ? "Evet" : "Hayır"} />
+            ) : null}
           </Section>
 
-          <DetailsPretty row={row} />
-          <MeasurementsPretty row={row} />
-
-          {row.images?.length || row.drawings?.length ? (
-            <Section title="Dosyalar">
-              {row.images?.length ? <Row label="Fotoğraflar" value={row.images.join(", ")} /> : null}
-              {row.drawings?.length ? <Row label="Çizimler" value={row.drawings.join(", ")} /> : null}
-            </Section>
+          {schemaLoading ? (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+              Form şeması yükleniyor...
+            </div>
           ) : null}
+
+          {dynamicSections.map((sec, idx) => {
+            const bucketData = sec.bucket === "measurements" ? artifact?.measurements : artifact?.details;
+            return (
+              <Section key={`${sec.title}-${sec.bucket}-${idx}`} title={sec.title}>
+                {sec.fields.map((f) => (
+                  <KeyValueRow key={f.key} label={f.label} value={formatValue(f, bucketData)} />
+                ))}
+              </Section>
+            );
+          })}
         </>
-      )}
+      ) : null}
     </Modal>
   );
 }

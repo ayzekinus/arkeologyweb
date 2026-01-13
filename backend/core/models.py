@@ -93,9 +93,12 @@ class MainCode(models.Model):
 class Artifact(models.Model):
     FORM_TYPES = (
         ("GENEL", "Genel"),
-        ("SIKKE", "Sikke"),
-        ("SERAMIK", "Seramik"),
-        ("MEZAR", "Mezar"),
+("SIKKE", "Sikke"),
+("SERAMIK", "Seramik"),
+("TERRACOTTA", "Terracotta"),
+("FIGURIN", "Figürin"),
+("MEZAR", "Mezar"),
+("CAM_METAL", "Cam / Metal"),
     )
 
     main_code = models.ForeignKey(MainCode, on_delete=models.CASCADE, related_name="artifacts", verbose_name="Anakod")
@@ -106,6 +109,10 @@ class Artifact(models.Model):
 
     production_material = models.CharField(max_length=120, blank=True, null=True, verbose_name="Yapım Malzemesi")
     period = models.CharField(max_length=120, blank=True, null=True, verbose_name="Dönem")
+
+    form_object = models.CharField(max_length=120, blank=True, null=True, verbose_name="Form/Obje")
+    production_site = models.CharField(max_length=120, blank=True, null=True, verbose_name="Üretim Yeri")
+    other_place_info = models.CharField(max_length=255, blank=True, null=True, verbose_name="B. Yeri Diğer")
 
     finding_shape = models.CharField(max_length=120, blank=True, null=True, verbose_name="Buluntu Şekli")
     level = models.CharField(max_length=60, blank=True, null=True, verbose_name="Buluntu Seviyesi")
