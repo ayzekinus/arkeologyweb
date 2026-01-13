@@ -7,6 +7,11 @@ from rest_framework.response import Response
 from .models import ArtifactForm, ArtifactFormField
 from .serializers_formbuilder import ArtifactFormSerializer
 
+def _has_model_field(model, field_name: str) -> bool:
+    return any(f.name == field_name for f in model._meta.fields)
+
+
+
 
 class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only endpoints for Form Builder.
@@ -23,7 +28,7 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         include_all = self.request.query_params.get("all")
-        if include_all not in ("1", "true", "True"):
+        if include_all not in ("1", "true", "True") and _has_model_field(ArtifactForm, "is_active"):
             qs = qs.filter(is_active=True)
         return qs
 
@@ -35,11 +40,12 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
         """
         form = self.get_object()
 
-        form_fields = (
-            ArtifactFormField.objects.filter(form=form, is_active=True, field__is_active=True)
-            .select_related("field")
-            .order_by("order", "id")
-        )
+        form_fields = ArtifactFormField.objects.filter(form=form)
+        if _has_model_field(ArtifactFormField, "is_active"):
+            form_fields = form_fields.filter(is_active=True)
+        if _has_model_field(ArtifactFormField._meta.get_field("field").remote_field.model, "is_active"):
+            form_fields = form_fields.filter(field__is_active=True)
+        form_fields = form_fields.select_related("field").order_by("order", "id")
 
         sections = OrderedDict()
         for ff in form_fields:

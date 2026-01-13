@@ -295,10 +295,13 @@ class Command(BaseCommand):
                 field = fields_by_key.get(field_key)
                 if not field:
                     continue
+                defaults = {"required": bool(required), "readonly": False, "order": i}
+                if hasattr(ArtifactFormField, "is_active"):
+                    defaults["is_active"] = True
                 ArtifactFormField.objects.update_or_create(
                     form=form,
                     field=field,
-                    defaults={"required": bool(required), "readonly": False, "order": i, "is_active": True},
+                    defaults=defaults,
                 )
 
         # Material groups + form mapping (optional defaults)
