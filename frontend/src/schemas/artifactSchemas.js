@@ -30,8 +30,15 @@ export const ENUMS = {
 };
 
 export const UNITS = {
-  length: ["mm", "cm", "m"],
-  weight: ["gr", "kg"],
+  length: [
+    { value: "mm", label: "mm" },
+    { value: "cm", label: "cm" },
+    { value: "m", label: "m" },
+  ],
+  weight: [
+    { value: "g", label: "gr" },
+    { value: "kg", label: "kg" },
+  ],
 };
 
 /**
@@ -54,7 +61,7 @@ export const MEASUREMENT_SCHEMA = [
  */
 export const DETAILS_SCHEMA = {
   // Coin (Sikke)
-  SIKKE: [
+\1"SIKKE": [
     { key: "condition", label: "Kondüsyon", kind: "text" },
     { key: "unit", label: "Birimi", kind: "text" },
     { key: "diameter", label: "Çap", unitKey: "diameter_unit", kind: "measure", unitType: "length" },
@@ -74,7 +81,7 @@ export const DETAILS_SCHEMA = {
   ],
 
   // Ceramic (Seramik)
-  SERAMIK: [
+\1"SERAMIK": [
     { key: "clay_color", label: "Hamur Rengi", kind: "text" },
     { key: "undercoat_color", label: "Astar Rengi", kind: "text" },
     { key: "dipinto_color", label: "Dipinto Rengi", kind: "text" },
@@ -94,7 +101,7 @@ export const DETAILS_SCHEMA = {
   ],
 
   // Grave (Mezar) — placeholder for next iteration
-  MEZAR: [
+\1"MEZAR": [
     { key: "grave_type", label: "Mezar Tipi", kind: "text" },
     { key: "burial_form", label: "Gömü Biçimi", kind: "text" },
     { key: "burial_type", label: "Gömü Tipi", kind: "text" },
@@ -102,7 +109,7 @@ export const DETAILS_SCHEMA = {
     { key: "direction", label: "Yön", kind: "text" },
     { key: "grave_artifacts", label: "Mezar Buluntuları", kind: "textarea", fullWidth: true },
   ],
-  TERRACOTTA: SERAMIK,
-  FIGURIN: SERAMIK,
+\1"TERRACOTTA": SERAMIK,
+\1"FIGURIN": SERAMIK,
   CAM_METAL: GENEL,
 };

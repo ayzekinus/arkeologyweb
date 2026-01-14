@@ -55,3 +55,4 @@ class MaterialGroupAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("key", "title")
     inlines = [MaterialAliasInline, MaterialFormMapInline]
+

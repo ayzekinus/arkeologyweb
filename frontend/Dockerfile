@@ -2,8 +2,15 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# IMPORTANT:
+# Some environments set npm "production" config true, which omits devDependencies.
+# Vite lives in devDependencies, so we force production=false for the build stage.
+ENV NODE_ENV=development
+ENV NPM_CONFIG_PRODUCTION=false
+
 COPY package.json package-lock.json* ./
-RUN npm ci --include=dev || npm install --include=dev
+# Deterministic install if lock exists; fallback to install if not.
+RUN npm ci || npm install
 
 COPY . .
 RUN npm run build
