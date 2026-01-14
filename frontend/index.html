@@ -7,6 +7,21 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      Global form keys (runtime safety)
+      Some code paths reference these as bare identifiers (e.g. SERAMIK).
+      Defining them here prevents "ReferenceError: SERAMIK is not defined".
+    -->
+    <script>
+      var SIKKE = "SIKKE";
+      var SERAMIK = "SERAMIK";
+      var MEZAR = "MEZAR";
+      var FIGURIN = "FIGURIN";
+      var TERRACOTTA = "TERRACOTTA";
+      var CAM_METAL = "CAM_METAL";
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

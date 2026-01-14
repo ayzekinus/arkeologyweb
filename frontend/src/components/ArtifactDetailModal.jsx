@@ -1,8 +1,34 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Modal from "../ui/Modal.jsx";
 import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA, ENUMS, UNITS } from "../schemas/artifactSchemas.js";
 import KeyValueRow from "./KeyValueRow.jsx";
 import { apiGet } from "../api";
+
+
+function InlineModal({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div className="text-base font-semibold text-slate-900">{title}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Kapat
+          </button>
+        </div>
+        <div className="max-h-[80vh] overflow-auto px-5 py-4">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function Section({ title, children }) {
   return (
@@ -146,7 +172,7 @@ export default function ArtifactDetailModal({ open, onClose, artifact }) {
   }, [formSchema, effectiveFormType]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Buluntu Detay">
+    <InlineModal open={open} onClose={onClose} title="Buluntu Detay">
       {artifact ? (
         <>
           <div className="mb-6 grid grid-cols-2 gap-3">
@@ -200,6 +226,6 @@ export default function ArtifactDetailModal({ open, onClose, artifact }) {
           })}
         </>
       ) : null}
-    </Modal>
+    </InlineModal>
   );
 }
