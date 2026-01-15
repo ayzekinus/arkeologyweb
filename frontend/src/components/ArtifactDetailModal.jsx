@@ -1,198 +1,369 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/**
- * ArtifactDetailModal (backward-compatible)
- *
- * This project has gone through multiple iterations, so list pages may pass
- * different prop names.
- *
- * Supported:
- * - open OR isOpen
- * - artifactId OR id OR pk OR artifact (object)
- * - onClose (optional)
- */
+function coalesce(...values) {
+  for (const v of values) {
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return null;
+}
+
+function hasValue(v) {
+  if (v === undefined || v === null) return false;
+  if (typeof v === "string") return v.trim().length > 0;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "object") return Object.keys(v).length > 0;
+  return true;
+}
+
+function formatValue(v) {
+  if (!hasValue(v)) return "-";
+  if (typeof v === "boolean") return v ? "Evet" : "Hayır";
+
+  if (Array.isArray(v)) {
+    const parts = v
+      .map((x) => formatValue(x))
+      .map((s) => (s === "-" ? "" : s))
+      .filter(Boolean);
+    return parts.length ? parts.join(", ") : "-";
+  }
+
+  if (typeof v === "object") {
+    const preferred = coalesce(
+      v.label,
+      v.name,
+      v.title,
+      v.display,
+      v.value,
+      v.key,
+      v.code,
+      v.id
+    );
+    if (preferred !== null) return String(preferred);
+
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return "[Object]";
+    }
+  }
+
+  return String(v);
+}
+
+function formatMeasure(rawValue, rawUnit) {
+  if (!hasValue(rawValue)) return "-";
+  const val = formatValue(rawValue);
+  const unit = hasValue(rawUnit) ? formatValue(rawUnit) : "";
+  return unit ? `${val} ${unit}` : val;
+}
+
+function InfoCard({ label, value, wide = false }) {
+  return (
+    <div
+      className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
+        wide ? "sm:col-span-2" : ""
+      }`}
+    >
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="mt-1 whitespace-pre-wrap break-words text-sm font-semibold text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function ArtifactDetailModal({
   open,
   isOpen,
-  artifactId: artifactIdProp,
+  artifactId,
   id,
   pk,
   artifact,
   onClose,
 }) {
-  const visible = Boolean(open ?? isOpen);
+  const visible = open !== undefined ? open : Boolean(isOpen);
 
-  const artifactId = useMemo(() => {
+  const resolvedId = useMemo(() => {
     return (
-      artifactIdProp ??
+      artifactId ??
       id ??
       pk ??
-      (artifact && (artifact.id ?? artifact.pk)) ??
+      artifact?.id ??
+      artifact?.pk ??
+      artifact?.artifact_id ??
       null
     );
-  }, [artifactIdProp, id, pk, artifact]);
+  }, [artifactId, id, pk, artifact]);
 
-  const [detail, setDetail] = useState(null);
+  const [detail, setDetail] = useState(artifact ?? null);
+  const [schema, setSchema] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!visible) return;
+    if (artifact) setDetail(artifact);
+  }, [visible, artifact]);
 
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose?.();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visible, onClose]);
-
+  // Fetch full detail if needed
   useEffect(() => {
     if (!visible) return;
+    if (!resolvedId) return;
 
-    // If list passes the whole artifact object, show it immediately.
-    if (artifact && typeof artifact === "object") {
-      setDetail(artifact);
+    const needsFetch =
+      !detail ||
+      (detail.details === undefined &&
+        detail.measurements === undefined &&
+        detail.form_type !== undefined);
+
+    if (!needsFetch) return;
+
+    setLoading(true);
+    setError(null);
+
+    fetch(`/api/artifacts/${resolvedId}/`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => setDetail(data))
+      .catch((e) => {
+        setError(String(e?.message || e));
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, resolvedId]);
+
+  const formKey = useMemo(() => {
+    if (!detail) return null;
+
+    const ft = detail.form_type;
+    if (typeof ft === "string") return ft;
+
+    if (ft && typeof ft === "object") {
+      return (
+        ft.key ??
+        ft.code ??
+        ft.value ??
+        ft.name ??
+        ft.title ??
+        null
+      );
     }
 
-    if (!artifactId) {
-      setError("Buluntu ID bulunamadı.");
+    return detail.form_type_key ?? detail.form_key ?? null;
+  }, [detail]);
+
+  // Fetch schema for the selected form
+  useEffect(() => {
+    if (!visible) return;
+    if (!formKey) {
+      setSchema(null);
       return;
     }
 
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch(`/api/artifacts/${artifactId}/`, {
-          credentials: "include",
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`API Hatası (${res.status}): ${txt}`);
-        }
-        const data = await res.json();
-        if (!cancelled) setDetail(data);
-      } catch (e) {
-        if (!cancelled) setError(e?.message || "Detay yüklenemedi.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
+    setSchemaLoading(true);
+    fetch(`/api/forms/${encodeURIComponent(formKey)}/schema/`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => setSchema(data))
+      .catch(() => setSchema(null))
+      .finally(() => setSchemaLoading(false));
+  }, [visible, formKey]);
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, artifactId, artifact]);
+  const displayMainCode = useMemo(() => {
+    if (!detail) return "-";
+    const v = coalesce(
+      detail.main_code_code,
+      detail.main_code_display,
+      detail.main_code_title,
+      detail.main_code?.code,
+      detail.main_code?.title,
+      detail.main_code?.name,
+      detail.main_code
+    );
+    return v !== null ? String(v) : "-";
+  }, [detail]);
+
+  const summary = useMemo(() => {
+    if (!detail) return [];
+
+    const artifactNo = coalesce(
+      detail.full_artifact_no,
+      detail.artifact_no,
+      detail.buluntu_no
+    );
+
+    const artifactDate = coalesce(detail.artifact_date, detail.buluntu_tarihi);
+
+    const formTitle = coalesce(
+      detail.form_type_title,
+      detail.form_type_display,
+      detail.form_title,
+      (typeof detail.form_type === "object" ? detail.form_type?.title : null),
+      formKey
+    );
+
+    const pieceDate = coalesce(detail.piece_date, detail.eser_tarihi);
+
+    const isInventory =
+      detail.is_inventory !== undefined ? detail.is_inventory : detail.envanterlik;
+
+    return [
+      { label: "Anakod", value: displayMainCode, key: "main_code" },
+      {
+        label: "Buluntu No",
+        value: hasValue(artifactNo) ? String(artifactNo) : "-",
+        key: "artifact_no",
+      },
+      {
+        label: "Buluntu Tarihi",
+        value: hasValue(artifactDate) ? String(artifactDate) : "-",
+        key: "artifact_date",
+      },
+      {
+        label: "Form Türü",
+        value: hasValue(formTitle) ? String(formTitle) : "-",
+        key: "form_type",
+      },
+      {
+        label: "Eser Tarihi",
+        value: hasValue(pieceDate) ? String(pieceDate) : "-",
+        key: "piece_date",
+      },
+      {
+        label: "Envanterlik",
+        value:
+          isInventory === true
+            ? "Evet"
+            : isInventory === false
+            ? "Hayır"
+            : "-",
+        key: "is_inventory",
+      },
+    ];
+  }, [detail, displayMainCode, formKey]);
+
+  const summaryKeySet = useMemo(() => {
+    const s = new Set();
+    summary.forEach((x) => s.add(x.key));
+    return s;
+  }, [summary]);
+
+  function getFieldDisplay(field) {
+    if (!detail) return { display: "-", raw: null };
+
+    const key = field.key;
+    const bucket = field.bucket;
+
+    if (key === "main_code") return { display: displayMainCode, raw: displayMainCode };
+
+    if (bucket === "details") {
+      const raw = coalesce(detail.details?.[key], detail.form_details?.[key]);
+      return { display: formatValue(raw), raw };
+    }
+
+    if (bucket === "measurements") {
+      const rawValue = coalesce(detail.measurements?.[key], detail[key]);
+      const rawUnit = coalesce(
+        detail.measurements?.[`${key}_unit`],
+        detail.measurements?.[`${key}Unit`],
+        detail[`${key}_unit`]
+      );
+      return { display: formatMeasure(rawValue, rawUnit), raw: rawValue };
+    }
+
+    // general
+    const raw = coalesce(detail[key], detail.general?.[key]);
+    return { display: formatValue(raw), raw };
+  }
 
   if (!visible) return null;
 
-  const mainCodeLabel =
-    detail?.main_code_code ??
-    detail?.main_code_display ??
-    detail?.main_code ??
-    "-";
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-    >
-      {/* Overlay */}
-      <button
-        type="button"
-        aria-label="Close"
-        className="absolute inset-0 bg-black/40"
-        onClick={() => onClose?.()}
-      />
-
-      {/* Modal */}
-      <div className="relative mx-4 w-full max-w-4xl rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
+      <div className="w-full max-w-5xl rounded-2xl bg-slate-50 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Buluntu Detayı</div>
-            <div className="text-xs text-slate-500">ID: {artifactId ?? "-"}</div>
+            <div className="text-sm text-slate-500">Buluntu Detayı</div>
+            <div className="text-lg font-semibold text-slate-900">
+              {hasValue(detail?.full_artifact_no)
+                ? String(detail.full_artifact_no)
+                : hasValue(detail?.artifact_no)
+                ? `#${detail.artifact_no}`
+                : resolvedId
+                ? `#${resolvedId}`
+                : ""}
+            </div>
           </div>
+
           <button
             type="button"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            onClick={() => onClose?.()}
+            onClick={onClose}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
           >
             Kapat
           </button>
         </div>
 
-        <div className="max-h-[75vh] overflow-auto p-5">
-          {loading && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div className="max-h-[80vh] overflow-auto px-6 py-5">
+          {(loading || schemaLoading) && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
               Yükleniyor...
             </div>
           )}
 
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          {!loading && !error && (
-            <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Anakod</div>
-                  <div className="text-sm font-semibold text-slate-900">{mainCodeLabel}</div>
-                </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {summary.map((c) => (
+              <InfoCard key={c.key} label={c.label} value={c.value} />
+            ))}
+          </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Buluntu No</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {detail?.artifact_no ?? detail?.artifactNo ?? "-"}
-                  </div>
-                </div>
+          <div className="mt-6 space-y-7">
+            {schema?.sections?.length ? (
+              schema.sections.map((section) => {
+                const visibleFields = (section.fields || [])
+                  .filter((f) => !summaryKeySet.has(f.key))
+                  .map((f) => ({ field: f, v: getFieldDisplay(f) }))
+                  // Show only non-empty fields to avoid huge empty forms
+                  .filter(({ v }) => hasValue(v.raw));
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Buluntu Tarihi</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {detail?.artifact_date ?? detail?.artifactDate ?? "-"}
-                  </div>
-                </div>
+                if (!visibleFields.length) return null;
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Form Türü</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {detail?.form_type_title ?? detail?.form_type ?? detail?.formType ?? "-"}
-                  </div>
-                </div>
+                return (
+                  <div key={section.key || section.title}>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">
+                      {section.title}
+                    </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Eser Tarihi</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {detail?.piece_date ?? detail?.pieceDate ?? "-"}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {visibleFields.map(({ field, v }) => (
+                        <InfoCard
+                          key={`${field.bucket}:${field.key}`}
+                          label={field.label}
+                          value={v.display}
+                          wide={field.data_type === "textarea"}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="text-xs text-slate-500">Envanterlik</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {detail?.is_inventory ?? detail?.isInventory
-                      ? "Evet"
-                      : "Hayır"}
-                  </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                Form şeması bulunamadı. (FormBuilder tanımı yapılmadıysa bu normaldir.)
               </div>
-
-              {/* Raw JSON fallback (useful until FormBuilder-detail rendering is finalized) */}
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-2 text-xs font-semibold text-slate-700">Ham Veri</div>
-                <pre className="whitespace-pre-wrap break-words text-xs text-slate-700">
-                  {JSON.stringify(detail ?? {}, null, 2)}
-                </pre>
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
