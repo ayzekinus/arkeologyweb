@@ -178,7 +178,7 @@ export default function ArtifactDetailModal({ open, onClose, artifact }) {
           <div className="mb-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">Anakod</div>
-              <div className="text-sm font-semibold text-slate-900">{detail?.main_code_code ?? detail?.main_code_display ?? detail?.main_code || "-"}</div>
+              <div className="text-sm font-semibold text-slate-900">{detail?.main_code_code ?? detail?.main_code_display ?? detail?.main_code ?? "-"}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">Buluntu No</div>
