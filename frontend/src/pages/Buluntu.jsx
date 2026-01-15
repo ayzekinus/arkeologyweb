@@ -111,6 +111,7 @@ export default function Buluntu() {
   }, [form.form_type]);
 
   const [formSchema, setFormSchema] = useState(null);
+  const [schemaMissing, setSchemaMissing] = useState(false);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
 
@@ -129,7 +130,8 @@ export default function Buluntu() {
         setSchemaError(null);
         const payload = await apiGet(`/api/forms/${ft}/schema/`);
         setFormSchema(payload);
-      } catch (e) {
+        setSchemaMissing(!(payload && Array.isArray(payload.sections) && payload.sections.length));
+} catch (e) {
         setFormSchema(null);
         setSchemaError(e?.message || "Form şeması yüklenemedi.");
       } finally {
@@ -181,13 +183,15 @@ export default function Buluntu() {
   }
 
   const dynamicSections = useMemo(() => {
-    // Prefer server-driven schema; fall back to local prototype schemas if missing
+    // FormBuilder strict mode: only server-driven schema renders dynamic sections.
     if (formSchema?.sections?.length) {
       const out = [];
       for (const sec of formSchema.sections) {
         const byBucket = {};
         for (const fd of sec.fields || []) {
-          const bucket = fd.bucket || "details";
+          const bucket =
+            fd.bucket ||
+            (sec.section_type === "measurement" ? "measurement" : "details");
           byBucket[bucket] ||= [];
           byBucket[bucket].push(adaptFieldDef(fd));
         }
@@ -198,13 +202,7 @@ export default function Buluntu() {
       }
       return out;
     }
-
-    // Fallback (local schemas)
-    const out = [];
-    const detailsSchema = DETAILS_SCHEMA[effectiveFormType] || [];
-    if (detailsSchema.length) out.push({ title: "Form Detayları", bucket: "details", fields: detailsSchema });
-    if (MEASUREMENT_SCHEMA?.length) out.push({ title: "Ölçü Bilgileri", bucket: "measurements", fields: MEASUREMENT_SCHEMA });
-    return out;
+    return [];
   }, [formSchema, effectiveFormType]);
 
   function renderDynamicFormSections() {
@@ -264,7 +262,7 @@ export default function Buluntu() {
         if (fr.length) {
           setForm((p) => ({ ...p, form_type: p.form_type || fr[0].key }));
         } else {
-          setForm((p) => ({ ...p, form_type: p.form_type || "GENEL" }));
+          setForm((p) => ({ ...p, form_type: p.form_type || "" }));
         }
       } catch (e) {
         setMsg({ type: "error", text: e.message || "Veriler yüklenemedi." });
@@ -418,7 +416,7 @@ export default function Buluntu() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Form</label>
                 <div className="mt-1.5">
-                  <Select required value={form.form_type} onChange={(e) => setField("form_type", e.target.value)}>
+                  <Select required disabled={!forms.length} value={form.form_type} onChange={(e) => setField("form_type", e.target.value)}>
                     <option value="">Seçiniz...</option>
                     {forms.length ? (
                       forms.map((f) => (
@@ -427,15 +425,7 @@ export default function Buluntu() {
                         </option>
                       ))
                     ) : (
-                      <>
-                        <option value="GENEL">Genel</option>
-                        <option value="SIKKE">Sikke</option>
-                        <option value="SERAMIK">Seramik</option>
-                        <option value="TERRACOTTA">Terracotta</option>
-                        <option value="FIGURIN">Figürin</option>
-                        <option value="MEZAR">Mezar</option>
-                        <option value="CAM_METAL">Cam / Metal</option>
-                      </>
+                      <option value="">Form bulunamadı — Admin panelden ekleyin</option>
                     )}
                   </Select>
                 </div>

@@ -1,16 +1,30 @@
 from collections import OrderedDict
 
+def _default_unit_options(unit_group: str):
+    # Provide sensible defaults when unit choices are not explicitly defined in FormBuilder.
+    if unit_group == "length":
+        return [
+            {"value": "mm", "label": "mm"},
+            {"value": "cm", "label": "cm"},
+            {"value": "m", "label": "m"},
+        ]
+    if unit_group == "weight":
+        return [
+            {"value": "gr", "label": "gr"},
+            {"value": "kg", "label": "kg"},
+        ]
+    if unit_group == "volume":
+        return [
+            {"value": "ml", "label": "ml"},
+            {"value": "l", "label": "l"},
+        ]
+    return []
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import ArtifactForm, ArtifactFormField
 from .serializers_formbuilder import ArtifactFormSerializer
-
-def _has_model_field(model, field_name: str) -> bool:
-    return any(f.name == field_name for f in model._meta.fields)
-
-
 
 
 class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
@@ -28,7 +42,7 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         include_all = self.request.query_params.get("all")
-        if include_all not in ("1", "true", "True") and _has_model_field(ArtifactForm, "is_active"):
+        if include_all not in ("1", "true", "True"):
             qs = qs.filter(is_active=True)
         return qs
 
@@ -40,12 +54,11 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
         """
         form = self.get_object()
 
-        form_fields = ArtifactFormField.objects.filter(form=form)
-        if _has_model_field(ArtifactFormField, "is_active"):
-            form_fields = form_fields.filter(is_active=True)
-        if _has_model_field(ArtifactFormField._meta.get_field("field").remote_field.model, "is_active"):
-            form_fields = form_fields.filter(field__is_active=True)
-        form_fields = form_fields.select_related("field").order_by("order", "id")
+        form_fields = (
+            ArtifactFormField.objects.filter(form=form, is_active=True, field__is_active=True)
+            .select_related("field")
+            .order_by("order", "id")
+        )
 
         sections = OrderedDict()
         for ff in form_fields:
@@ -64,7 +77,8 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                     "help_text": fd.help_text,
                     "list_type": fd.list_type,
                     "unit_group": fd.unit_group,
-                    "choices": fd.choices or [],
+                    "unit_options": (fd.choices or _default_unit_options(fd.unit_group)) if fd.unit_group else [],
+"choices": fd.choices or [],
                 }
             )
 

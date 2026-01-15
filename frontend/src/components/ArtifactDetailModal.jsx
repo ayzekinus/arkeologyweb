@@ -178,7 +178,7 @@ export default function ArtifactDetailModal({ open, onClose, artifact }) {
           <div className="mb-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">Anakod</div>
-              <div className="text-sm font-semibold text-slate-900">{artifact?.main_code_display || "-"}</div>
+              <div className="text-sm font-semibold text-slate-900">{detail?.main_code_code ?? detail?.main_code_display ?? detail?.main_code || "-"}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs text-slate-500">Buluntu No</div>
@@ -201,7 +201,7 @@ export default function ArtifactDetailModal({ open, onClose, artifact }) {
             <KeyValueRow label="Buluntu Şekli" value={artifact?.finding_shape || ""} />
             <KeyValueRow label="Üretim Yeri" value={artifact?.production_site || ""} />
             <KeyValueRow label="Dönem" value={artifact?.period || ""} />
-            <KeyValueRow label="Eser Tarihi" value={artifact?.artifact_date || ""} />
+            <KeyValueRow label="Eser Tarihi" value={detail?.artifact_date || ""} />
             <KeyValueRow label="B. Yeri Diğer" value={artifact?.other_place_info || ""} />
             {"is_inventory" in artifact ? (
               <KeyValueRow label="Envanterlik" value={artifact?.is_inventory ? "Evet" : "Hayır"} />

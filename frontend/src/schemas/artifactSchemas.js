@@ -1,33 +1,5 @@
-/**
- * Artifact (Buluntu) form schemas:
- * - Pretty rendering (modal)
- * - Dynamic form rendering (create/edit) without touching Buluntu.jsx for new fields
- *
- * Keys map to stored JSON fields: row.details / row.measurements.
- */
-
-export const ENUMS = {
-  surface_quality: {
-    0: "Pürtüklü",
-    1: "Tozsu",
-    2: "Kaygan",
-  },
-  baking: {
-    0: "İyi",
-    1: "Orta",
-    2: "Kötü",
-  },
-  texture: {
-    0: "Sert",
-    1: "Orta",
-    2: "Yumuşak",
-  },
-  pore: {
-    0: "Az",
-    1: "Orta",
-    2: "Çok",
-  },
-};
+// Frontend fallback schemas (Form Builder is the source of truth).
+// These are used only if the backend schema endpoint is unavailable.
 
 export const UNITS = {
   length: [
@@ -36,80 +8,117 @@ export const UNITS = {
     { value: "m", label: "m" },
   ],
   weight: [
-    { value: "g", label: "gr" },
+    { value: "gr", label: "gr" },
     { value: "kg", label: "kg" },
   ],
 };
 
-/**
- * Measurement schema (common fields).
- * Add/remove fields here without changing page component.
- */
-export const MEASUREMENT_SCHEMA = [
-  { key: "height", label: "Yükseklik", unitKey: "height_unit", kind: "measure", unitType: "length" },
-  { key: "nozzle_diameter", label: "Ağız Çapı", unitKey: "nozzle_diameter_unit", kind: "measure", unitType: "length" },
-  { key: "base_diameter", label: "Kaide/Dip Çapı", unitKey: "base_diameter_unit", kind: "measure", unitType: "length" },
-  { key: "wall_thickness", label: "Kalınlık/Cidar", unitKey: "wall_thickness_unit", kind: "measure", unitType: "length" },
-  { key: "length", label: "Uzunluk", unitKey: "length_unit", kind: "measure", unitType: "length" },
-  { key: "width", label: "Genişlik", unitKey: "width_unit", kind: "measure", unitType: "length" },
-  { key: "body_diameter", label: "Gövde Çapı", unitKey: "body_diameter_unit", kind: "measure", unitType: "length" },
-];
-
-/**
- * Details schema per form_type.
- * kind: text | textarea | enum | measure
- */
-export const DETAILS_SCHEMA = {
-  // Coin (Sikke)
-\1"SIKKE": [
-    { key: "condition", label: "Kondüsyon", kind: "text" },
-    { key: "unit", label: "Birimi", kind: "text" },
-    { key: "diameter", label: "Çap", unitKey: "diameter_unit", kind: "measure", unitType: "length" },
-    { key: "mold_direction", label: "Kalıp Yönü", kind: "text" },
-    { key: "emperor", label: "İmparator", kind: "text" },
-    { key: "minting_year", label: "Darp Yılı", kind: "text" },
-
-    { key: "front_face_definition", label: "Ön Yüz Tanımı", kind: "textarea", fullWidth: true },
-    { key: "back_face_definition", label: "Arka Yüz Tanımı", kind: "textarea", fullWidth: true },
-    { key: "front_face_legend", label: "Ön Yüz Lejandı", kind: "textarea", fullWidth: true },
-    { key: "back_face_legend", label: "Arka Yüz Lejandı", kind: "textarea", fullWidth: true },
-
-    { key: "mint", label: "Darphane", kind: "text" },
-    { key: "branch", label: "Şube", kind: "text" },
-    { key: "reference", label: "Ref.", kind: "text" },
-    { key: "weight", label: "Ağırlık", unitKey: "weight_unit", kind: "measure", unitType: "weight" },
+export const ENUMS = {
+  surface_quality: [
+    { value: 0, label: "Pürtüklü" },
+    { value: 1, label: "Tozsu" },
+    { value: 2, label: "Kaygan" },
   ],
-
-  // Ceramic (Seramik)
-\1"SERAMIK": [
-    { key: "clay_color", label: "Hamur Rengi", kind: "text" },
-    { key: "undercoat_color", label: "Astar Rengi", kind: "text" },
-    { key: "dipinto_color", label: "Dipinto Rengi", kind: "text" },
-    { key: "surface_color", label: "Yüzey Rengi", kind: "text" },
-    { key: "glaze_color", label: "Sır Rengi", kind: "text" },
-    { key: "pattern_color", label: "Bezeme Rengi", kind: "text" },
-    { key: "other_color", label: "Diğer Renk", kind: "text" },
-
-    { key: "clay_definition", label: "Hamur Tanım", kind: "textarea", fullWidth: true },
-    { key: "form_definition", label: "Form Tanım", kind: "textarea", fullWidth: true },
-    { key: "more_definition", label: "Astar/Sır/Yüzey Tanım", kind: "textarea", fullWidth: true },
-
-    { key: "surface_quality", label: "Yüzey Kalitesi", kind: "enum", enumKey: "surface_quality" },
-    { key: "baking", label: "Fırınlama", kind: "enum", enumKey: "baking" },
-    { key: "texture", label: "Doku", kind: "enum", enumKey: "texture" },
-    { key: "pore", label: "Gözenek", kind: "enum", enumKey: "pore" },
+  baking: [
+    { value: 0, label: "İyi" },
+    { value: 1, label: "Orta" },
+    { value: 2, label: "Kötü" },
   ],
-
-  // Grave (Mezar) — placeholder for next iteration
-\1"MEZAR": [
-    { key: "grave_type", label: "Mezar Tipi", kind: "text" },
-    { key: "burial_form", label: "Gömü Biçimi", kind: "text" },
-    { key: "burial_type", label: "Gömü Tipi", kind: "text" },
-    { key: "depth", label: "Derinlik", kind: "text" },
-    { key: "direction", label: "Yön", kind: "text" },
-    { key: "grave_artifacts", label: "Mezar Buluntuları", kind: "textarea", fullWidth: true },
+  texture: [
+    { value: 0, label: "Sert" },
+    { value: 1, label: "Orta" },
+    { value: 2, label: "Yumuşak" },
   ],
-\1"TERRACOTTA": SERAMIK,
-\1"FIGURIN": SERAMIK,
-  CAM_METAL: GENEL,
+  density: [
+    { value: 0, label: "Az" },
+    { value: 1, label: "Orta" },
+    { value: 2, label: "Çok" },
+  ],
+  dimension: [
+    { value: 0, label: "İnce" },
+    { value: 1, label: "Orta" },
+    { value: 2, label: "İri" },
+  ],
 };
+
+const t = (key, label, opts = {}) => ({
+  key,
+  label,
+  kind: "text",
+  ...opts,
+});
+
+const e = (key, label, enumKey, opts = {}) => ({
+  key,
+  label,
+  kind: "enum",
+  enumKey,
+  ...opts,
+});
+
+const m = (key, label, unitKey, unitType = "length", opts = {}) => ({
+  key,
+  label,
+  kind: "measure",
+  unitKey,
+  unitType,
+  ...opts,
+});
+
+// --- Fallback "details" schemas (bucket: details) ---
+export const DETAILS_SCHEMA = {
+  "GENEL": [
+    t("construction_technique", "Yapım Tekniği"),
+    t("pattern_inscription", "Bezeme / Yazıt"),
+    t("other_info", "Diğer Bilgiler", { kind: "textarea", fullWidth: true }),
+  ],
+  "SIKKE": [
+    t("condition", "Kondüsyon"),
+    t("unit", "Birimi"),
+    m("diameter", "Çap", "diameter_unit", "length"),
+    t("mold_direction", "Kalıp Yönü"),
+    t("emperor", "İmparator"),
+    t("minting_year", "Darp Yılı"),
+    t("front_face_definition", "Ön Yüz Tanımı", { fullWidth: true }),
+    t("back_face_definition", "Arka Yüz Tanımı", { fullWidth: true }),
+    t("front_face_legend", "Ön Yüz Lejandı", { fullWidth: true }),
+    t("back_face_legend", "Arka Yüz Lejandı", { fullWidth: true }),
+    t("mint", "Darphane"),
+    t("branch", "Şube"),
+    t("reference", "Ref."),
+    m("weight", "Ağırlık", "weight_unit", "weight"),
+  ],
+  "SERAMIK": [
+    t("construction_technique", "Yapım Tekniği"),
+    t("pattern_inscription", "Bezeme / Yazıt"),
+    t("clay_definition", "Hamur Tanım", { kind: "textarea", fullWidth: true }),
+    t("more_definition", "Astar / Sır / Yüzey Tanım", { kind: "textarea", fullWidth: true }),
+    e("surface_quality", "Yüzey Kalitesi", "surface_quality"),
+    e("baking", "Fırınlama", "baking"),
+    e("texture", "Doku", "texture"),
+    e("pore", "Gözenek (Yoğunluk)", "density"),
+  ],
+  "TERRACOTTA": [],
+  "FIGURIN": [],
+  "MEZAR": [
+    t("grave_type", "Mezar Tipi"),
+    t("burial_form", "Gömü Biçimi"),
+    t("burial_type", "Gömü Tipi"),
+    t("direction", "Yön"),
+    t("grave_artifacts", "Mezar Buluntuları", { kind: "textarea", fullWidth: true }),
+  ],
+  "CAM_METAL": [],
+};
+
+// --- Fallback "measurements" schema (bucket: measurements) ---
+export const MEASUREMENT_SCHEMA = [
+  m("height", "Yükseklik", "height_unit", "length"),
+  m("nozzle_diameter", "Ağız Çapı", "nozzle_diameter_unit", "length"),
+  m("base_diameter", "Kaide / Dip Çapı", "base_diameter_unit", "length"),
+  m("wall_thickness", "Kalınlık / Cidar", "wall_thickness_unit", "length"),
+  m("body_diameter", "Gövde Çapı", "body_diameter_unit", "length"),
+  m("length", "Uzunluk", "length_unit", "length"),
+  m("width", "Genişlik", "width_unit", "length"),
+  m("depth", "Derinlik", "depth_unit", "length"),
+  m("weight", "Ağırlık", "weight_unit", "weight"),
+];
