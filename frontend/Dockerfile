@@ -10,7 +10,7 @@ ENV NPM_CONFIG_PRODUCTION=false
 
 COPY package.json package-lock.json* ./
 # Deterministic install if lock exists; fallback to install if not.
-RUN npm ci || npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 COPY . .
 RUN npm run build
