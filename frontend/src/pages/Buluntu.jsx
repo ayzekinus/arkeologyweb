@@ -159,6 +159,7 @@ export default function Buluntu() {
         kind: "measure",
         unitKey: `${fd.key}_unit`,
         unitType: fd.unit_group,
+        unitOptions: fd.unit_options || [],
         inputType: "number",
       };
     }

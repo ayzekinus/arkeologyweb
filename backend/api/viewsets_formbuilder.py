@@ -78,7 +78,7 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                     "list_type": fd.list_type,
                     "unit_group": fd.unit_group,
                     "unit_options": (fd.choices or _default_unit_options(fd.unit_group)) if fd.unit_group else [],
-"choices": fd.choices or [],
+"choices": [] if fd.unit_group else (fd.choices or []),
                 }
             )
 

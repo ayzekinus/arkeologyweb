@@ -199,8 +199,22 @@ export default function SchemaFields({ title, schema = [], data = {}, onChange }
     // MEASURE (value + unit)
     if (f.kind === "measure" || f.unitKey) {
       const unitKey = f.unitKey || `${f.key}_unit`;
-      const unitType = f.unitType || "length";
-      const units = UNITS[unitType] || UNITS.length || [];
+      const unitType = (f.unitType || "length").trim();
+
+      const rawUnits =
+        Array.isArray(f.unitOptions) && f.unitOptions.length
+          ? f.unitOptions
+          : UNITS[unitType] || UNITS.length || [];
+
+      const units = (rawUnits || [])
+        .map((u) => {
+          if (typeof u === "string") return { value: u, label: u };
+          const value = u?.value ?? u?.id ?? u?.key;
+          const label = u?.label ?? u?.name ?? value;
+          return value ? { value, label } : null;
+        })
+        .filter(Boolean);
+
       const unitVal = safeData?.[unitKey] ?? units?.[0]?.value ?? "";
 
       return (
