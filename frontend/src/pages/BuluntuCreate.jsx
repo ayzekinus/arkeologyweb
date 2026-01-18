@@ -361,7 +361,7 @@ export default function BuluntuCreate() {
                     <option value="">Seçiniz...</option>
                     {anakod.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} — {a.finding_place}
+                        {a.code} — {a.finding_place_label || ""}
                       </option>
                     ))}
                   </Select>
