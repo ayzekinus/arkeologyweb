@@ -1,6 +1,4 @@
 from django.contrib import admin
-
-from api.models import LookupList, LookupItem
 from .models import MainCode, Artifact, MainCodeSequence, Report
 
 @admin.register(MainCode)

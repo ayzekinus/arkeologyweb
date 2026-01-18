@@ -23,8 +23,8 @@ export default function AnakodCreate() {
   });
 
   useEffect(() => {
-    apiGet("/api/lookups/?keys=PRODUCTION_SITE")
-      .then((data) => setFindingPlaceOptions(data?.PRODUCTION_SITE ?? []))
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
       .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
 
