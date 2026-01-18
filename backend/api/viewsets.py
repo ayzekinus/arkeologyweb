@@ -288,6 +288,15 @@ class ArtifactViewSet(viewsets.ModelViewSet):
         if form_type:
             qs = qs.filter(form_type=form_type)
 
+        is_inventory = qp.get("is_inventory")
+        if is_inventory is not None and is_inventory != "":
+            truthy = {"1", "true", "True", "yes", "on"}
+            falsy = {"0", "false", "False", "no", "off"}
+            if is_inventory in truthy:
+                qs = qs.filter(is_inventory=True)
+            elif is_inventory in falsy:
+                qs = qs.filter(is_inventory=False)
+
         # Text-ish filters
         main_code_code = qp.get("main_code_code")
         if main_code_code:
@@ -601,4 +610,3 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             {"detail": "format desteklenmiyor. csv | xlsx | pdf"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-

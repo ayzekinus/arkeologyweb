@@ -4,6 +4,7 @@ import Row from "./KeyValueRow.jsx";
 import Button from "../ui/Button.jsx";
 import Pagination from "../ui/Pagination.jsx";
 import Input from "../ui/Input.jsx";
+import { IconView } from "../ui/Icons.jsx";
 import { apiGet } from "../api.js";
 
 function Panel({ title, children }) {
@@ -176,8 +177,10 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
                               variant="secondary"
                               className="py-1.5"
                               onClick={() => onOpenArtifact && onOpenArtifact(a)}
+                              aria-label="Görüntüle"
+                              title="Görüntüle"
                             >
-                              Görüntüle
+                              <IconView />
                             </Button>
                           </td>
                         </tr>
