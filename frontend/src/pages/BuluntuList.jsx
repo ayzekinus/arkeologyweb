@@ -30,7 +30,7 @@ function download(url) {
   a.remove();
 }
 
-export default function BuluntuList() {
+export default function BuluntuList({ inventoryOnly = false }) {
   const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
@@ -57,6 +57,7 @@ export default function BuluntuList() {
     form_type: "",
     date_from: "",
     date_to: "",
+    is_inventory: inventoryOnly ? "1" : "",
   });
 
   const [filterDraft, setFilterDraft] = useState({ ...filters });
@@ -102,6 +103,7 @@ export default function BuluntuList() {
       form_type: "",
       date_from: "",
       date_to: "",
+      is_inventory: inventoryOnly ? "1" : "",
     };
     setFilterDraft(empty);
     setFilters(empty);
@@ -139,11 +141,14 @@ export default function BuluntuList() {
     }
   }
 
+  const pageTitle = inventoryOnly ? "Envanterlik Buluntular" : "Buluntu Listele";
+  const cardTitle = inventoryOnly ? "Envanterlik Buluntu Listesi" : "Buluntu Listesi";
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Buluntu Listele</h1>
+          <h1 className="text-2xl font-extrabold">{pageTitle}</h1>
           <p className="mt-1 text-sm text-slate-600">Server-side filtreleme ve sayfalama.</p>
         </div>
 
@@ -156,7 +161,7 @@ export default function BuluntuList() {
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Buluntu Listesi</CardTitle>
+          <CardTitle>{cardTitle}</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
             <Select value={ordering} onChange={(e) => setOrdering(e.target.value)}>
