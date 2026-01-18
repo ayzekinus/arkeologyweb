@@ -10,10 +10,19 @@ import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
 
-function pad4(n) {
+function formatArtifactNo(n) {
   const s = String(n ?? "").replace(/\D/g, "");
   if (!s) return "";
-  return s.length >= 4 ? s : s.padStart(4, "0");
+  if (s.length <= 2) return s.padStart(3, "0");
+  if (s.length === 3) return s.padStart(4, "0");
+  return s;
+}
+
+function unwrapResults(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.results)) return payload.results;
+  return [];
 }
 
 export default function BuluntuCreate() {
@@ -22,6 +31,8 @@ export default function BuluntuCreate() {
   const editId = searchParams.get("id");
 
   const [anakod, setAnakod] = useState([]);
+  const [forms, setForms] = useState([]);
+  const [lookups, setLookups] = useState({});
 
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -35,8 +46,10 @@ export default function BuluntuCreate() {
     main_code: "",
     artifact_no: "",
     artifact_date: "",
-    form_type: "GENEL",
+    form_type: "",
+    form_object: "",
     production_material: "",
+    production_site: "",
     period: "",
     is_inventory: false,
     is_active: true,
@@ -49,16 +62,30 @@ export default function BuluntuCreate() {
     drawings: [],
   });
 
+  const [formSchema, setFormSchema] = useState(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaError, setSchemaError] = useState(null);
+
   const fullNoPreview = useMemo(() => {
     const mc = anakod.find((a) => String(a.id) === String(form.main_code));
     const code = mc?.code || "";
-    const no = pad4(form.artifact_no);
+    const no = formatArtifactNo(form.artifact_no);
     return code && no ? `${code}${no}` : "";
   }, [anakod, form.main_code, form.artifact_no]);
 
   async function loadMainCodes() {
     const data = await apiGet("/api/main-codes/?page_size=500");
     setAnakod((data.results || data) ?? []);
+  }
+
+  async function loadForms() {
+    const data = await apiGet("/api/forms/?page_size=200&ordering=order");
+    setForms(unwrapResults(data));
+  }
+
+  async function loadLookups() {
+    const data = await apiGet("/api/lookups/");
+    setLookups(data || {});
   }
 
   async function loadArtifactForEdit(id) {
@@ -68,8 +95,10 @@ export default function BuluntuCreate() {
       main_code: data.main_code ?? "",
       artifact_no: data.artifact_no ?? "",
       artifact_date: data.artifact_date ?? "",
-      form_type: data.form_type ?? "GENEL",
+      form_type: data.form_type ?? "",
+      form_object: data.form_object ?? "",
       production_material: data.production_material ?? "",
+      production_site: data.production_site ?? "",
       period: data.period ?? "",
       is_inventory: !!data.is_inventory,
       is_active: data.is_active !== false,
@@ -84,7 +113,9 @@ export default function BuluntuCreate() {
   }
 
   useEffect(() => {
-    loadMainCodes().catch((e) => setErr(e.message || "Anakodlar yüklenemedi."));
+    Promise.all([loadMainCodes(), loadForms(), loadLookups()]).catch((e) =>
+      setErr(e.message || "Veriler yüklenemedi.")
+    );
   }, []);
 
   useEffect(() => {
@@ -96,9 +127,40 @@ export default function BuluntuCreate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
+  useEffect(() => {
+    if (editId || form.form_type) return;
+    if (forms.length) {
+      setForm((prev) => ({ ...prev, form_type: prev.form_type || forms[0].key }));
+    }
+  }, [forms, editId, form.form_type]);
+
+  useEffect(() => {
+    const ft = form.form_type;
+    if (!ft) {
+      setFormSchema(null);
+      setSchemaError(null);
+      setSchemaLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        setSchemaLoading(true);
+        setSchemaError(null);
+        const payload = await apiGet(`/api/forms/${ft}/schema/`);
+        setFormSchema(payload);
+      } catch (e) {
+        setFormSchema(null);
+        setSchemaError(e?.message || "Form şeması yüklenemedi.");
+      } finally {
+        setSchemaLoading(false);
+      }
+    })();
+  }, [form.form_type]);
+
   async function checkUnique(main_code, artifact_no) {
     const mc = main_code;
-    const noInt = parseInt(pad4(artifact_no), 10);
+    const noInt = parseInt(formatArtifactNo(artifact_no), 10);
     if (!mc || !noInt) {
       setUniqueHint("");
       setUniqueError(false);
@@ -135,6 +197,73 @@ export default function BuluntuCreate() {
     setForm((p) => ({ ...p, measurements: { ...(p.measurements || {}), [k]: v } }));
   }
 
+  function lookupOptions(key) {
+    return Array.isArray(lookups?.[key]) ? lookups[key] : [];
+  }
+
+  function adaptFieldDef(fd) {
+    const base = {
+      key: fd.key,
+      label: fd.label || fd.key,
+      required: !!fd.required,
+      readonly: !!fd.readonly,
+      helpText: fd.help_text || "",
+      fullWidth: !!fd.full_width,
+      inputType: fd.data_type === "int" || fd.data_type === "decimal" ? "number" : "text",
+      order: typeof fd.order === "number" ? fd.order : 999,
+    };
+
+    if (fd.unit_group) {
+      return {
+        ...base,
+        kind: "measure",
+        unitKey: `${fd.key}_unit`,
+        unitType: fd.unit_group,
+        unitOptions: fd.unit_options || [],
+        inputType: "number",
+      };
+    }
+
+    if (fd.data_type === "text") return { ...base, kind: "textarea" };
+    if (fd.data_type === "bool") return { ...base, kind: "bool" };
+    if (fd.data_type === "date") return { ...base, kind: "date" };
+
+    if (fd.data_type === "multiselect") {
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      return { ...base, kind: "multiselect", options };
+    }
+
+    if (fd.data_type === "choice" || fd.data_type === "select") {
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      if (options.length) {
+        return { ...base, kind: "enum", options };
+      }
+      return { ...base, kind: "text" };
+    }
+
+    return { ...base, kind: "text" };
+  }
+
+  const dynamicSections = useMemo(() => {
+    if (formSchema?.sections?.length) {
+      const out = [];
+      for (const sec of formSchema.sections) {
+        const byBucket = {};
+        for (const fd of sec.fields || []) {
+          const bucket = fd.bucket || "details";
+          byBucket[bucket] ||= [];
+          byBucket[bucket].push(adaptFieldDef(fd));
+        }
+        for (const [bucket, fields] of Object.entries(byBucket)) {
+          fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          out.push({ title: sec.title, bucket, fields });
+        }
+      }
+      return out;
+    }
+    return [];
+  }, [formSchema, lookups]);
+
   function renderFormFields() {
     const schema = DETAILS_SCHEMA[form.form_type] || [];
     if (!schema.length) return null;
@@ -158,7 +287,7 @@ export default function BuluntuCreate() {
     setMsg("");
     setErr("");
 
-    const no = pad4(form.artifact_no);
+    const no = formatArtifactNo(form.artifact_no);
     if (!form.main_code || !no || !form.artifact_date) {
       setErr("Anakod, Buluntu No ve Buluntu Tarihi zorunludur.");
       return;
@@ -168,7 +297,14 @@ export default function BuluntuCreate() {
       return;
     }
 
-    const payload = { ...form, artifact_no: parseInt(no, 10) };
+    const payload = {
+      ...form,
+      artifact_no: parseInt(no, 10),
+      form_object: form.form_object || null,
+      production_material: form.production_material || null,
+      production_site: form.production_site || null,
+      period: form.period || null,
+    };
 
     try {
       let saved = null;
@@ -185,8 +321,10 @@ export default function BuluntuCreate() {
         main_code: prev.main_code,
         artifact_no: "",
         artifact_date: "",
-        form_type: "GENEL",
+        form_type: prev.form_type,
+        form_object: "",
         production_material: "",
+        production_site: "",
         period: "",
         is_inventory: false,
         is_active: true,
@@ -256,9 +394,9 @@ export default function BuluntuCreate() {
                 <div className="mt-1.5">
                   <Input
                     required
-                    value={pad4(form.artifact_no)}
+                    value={formatArtifactNo(form.artifact_no)}
                     onChange={(e) => setForm((p) => ({ ...p, artifact_no: e.target.value }))}
-                    placeholder="0001"
+                    placeholder="001"
                   />
                 </div>
                 {fullNoPreview ? (
@@ -292,10 +430,29 @@ export default function BuluntuCreate() {
                     value={form.form_type}
                     onChange={(e) => setForm((p) => ({ ...p, form_type: e.target.value, details: {} }))}
                   >
-                    <option value="GENEL">Genel</option>
-                    <option value="SIKKE">Sikke</option>
-                    <option value="SERAMIK">Seramik</option>
-                    <option value="MEZAR">Mezar</option>
+                    <option value="">Seçiniz...</option>
+                    {forms.map((f) => (
+                      <option key={f.key} value={f.key}>
+                        {f.title}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Form / Obje</label>
+                <div className="mt-1.5">
+                  <Select
+                    value={form.form_object}
+                    onChange={(e) => setForm((p) => ({ ...p, form_object: e.target.value }))}
+                  >
+                    <option value="">Seçiniz...</option>
+                    {lookupOptions("FORM_OBJECT").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
+                      </option>
+                    ))}
                   </Select>
                 </div>
               </div>
@@ -303,17 +460,48 @@ export default function BuluntuCreate() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Yapım Malzemesi</label>
                 <div className="mt-1.5">
-                  <Input
+                  <Select
                     value={form.production_material}
                     onChange={(e) => setForm((p) => ({ ...p, production_material: e.target.value }))}
-                  />
+                  >
+                    <option value="">Seçiniz...</option>
+                    {lookupOptions("PRODUCTION_MATERIAL").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Üretim Yeri</label>
+                <div className="mt-1.5">
+                  <Select
+                    value={form.production_site}
+                    onChange={(e) => setForm((p) => ({ ...p, production_site: e.target.value }))}
+                  >
+                    <option value="">Seçiniz...</option>
+                    {lookupOptions("PRODUCTION_SITE").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">Dönem</label>
                 <div className="mt-1.5">
-                  <Input value={form.period} onChange={(e) => setForm((p) => ({ ...p, period: e.target.value }))} />
+                  <Select value={form.period} onChange={(e) => setForm((p) => ({ ...p, period: e.target.value }))}>
+                    <option value="">Seçiniz...</option>
+                    {lookupOptions("PERIOD").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
@@ -365,8 +553,46 @@ export default function BuluntuCreate() {
               </div>
             </div>
 
-            {renderFormFields()}
-            {renderMeasurements()}
+            {schemaLoading ? (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                Form şeması yükleniyor...
+              </div>
+            ) : null}
+
+            {schemaError ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                {schemaError}
+              </div>
+            ) : null}
+
+            {dynamicSections.length
+              ? dynamicSections.map((sec, idx) => {
+                  const bucketData = sec.bucket === "measurements" ? form.measurements : form.details;
+                  const onBucketChange =
+                    sec.bucket === "measurements"
+                      ? (key, value) =>
+                          setForm((prev) => ({ ...prev, measurements: { ...(prev.measurements || {}), [key]: value } }))
+                      : (key, value) =>
+                          setForm((prev) => ({ ...prev, details: { ...(prev.details || {}), [key]: value } }));
+
+                  return (
+                    <SchemaFields
+                      key={`${sec.title}-${sec.bucket}-${idx}`}
+                      title={sec.title}
+                      schema={sec.fields}
+                      data={bucketData || {}}
+                      onChange={onBucketChange}
+                    />
+                  );
+                })
+              : null}
+
+            {!schemaLoading && !schemaError && !dynamicSections.length ? (
+              <>
+                {renderFormFields()}
+                {renderMeasurements()}
+              </>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" type="submit">

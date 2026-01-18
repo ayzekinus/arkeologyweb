@@ -4,6 +4,8 @@ from .models import (
     ArtifactForm,
     ArtifactFormField,
     FieldDefinition,
+    LookupItem,
+    LookupList,
     MaterialAlias,
     MaterialFormMap,
     MaterialGroup,
@@ -56,3 +58,18 @@ class MaterialGroupAdmin(admin.ModelAdmin):
     search_fields = ("key", "title")
     inlines = [MaterialAliasInline, MaterialFormMapInline]
 
+
+class LookupItemInline(admin.TabularInline):
+    model = LookupItem
+    extra = 0
+    fields = ("value", "label", "order", "is_active")
+    ordering = ("order", "label")
+
+
+@admin.register(LookupList)
+class LookupListAdmin(admin.ModelAdmin):
+    list_display = ("key", "title", "order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("key", "title")
+    ordering = ("order", "title")
+    inlines = [LookupItemInline]

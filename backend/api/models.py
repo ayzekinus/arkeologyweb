@@ -167,3 +167,38 @@ class MaterialFormMap(models.Model):
 
     def __str__(self) -> str:
         return f"{self.group.key} -> {self.form.key}"
+
+
+class LookupList(models.Model):
+    """Lookup dictionary for select-style fields (FormBuilder list_type)."""
+
+    key = models.SlugField(max_length=60, unique=True, help_text="e.g. COLOR, PERIOD")
+    title = models.CharField(max_length=127)
+    description = models.TextField(blank=True, default="")
+    order = models.PositiveIntegerField(default=99)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "title"]
+
+    def __str__(self) -> str:
+        return f"{self.key} ({self.title})"
+
+
+class LookupItem(models.Model):
+    """Items within a lookup list."""
+
+    lookup = models.ForeignKey(LookupList, models.CASCADE, related_name="items")
+    value = models.CharField(max_length=120)
+    label = models.CharField(max_length=255)
+    order = models.PositiveIntegerField(default=99)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("lookup", "value")
+        ordering = ["order", "label"]
+
+    def __str__(self) -> str:
+        return f"{self.lookup.key}: {self.label}"

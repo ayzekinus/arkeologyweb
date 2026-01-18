@@ -9,10 +9,12 @@ import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
 
-function pad4(n) {
+function formatArtifactNo(n) {
   const s = String(n ?? "").replace(/\D/g, "");
   if (!s) return "";
-  return s.padStart(4, "0").slice(-4);
+  if (s.length <= 2) return s.padStart(3, "0");
+  if (s.length === 3) return s.padStart(4, "0");
+  return s;
 }
 
 function toInt(v) {
@@ -27,43 +29,10 @@ function unwrapResults(payload) {
   return [];
 }
 
-const FORM_OBJECT_OPTIONS = [
-  "Seramik Parça",
-  "Metal Parça",
-  "Cam Parça",
-  "Mimari Parça",
-  "Sikke",
-  "Figürin",
-  "Terracotta",
-  "Mezar",
-  "Diğer",
-];
-
-const PRODUCTION_MATERIAL_OPTIONS = [
-  "Seramik",
-  "Terracotta",
-  "Figürin",
-  "Metal",
-  "Cam",
-  "Taş",
-  "Kemik",
-  "Diğer",
-];
-
-const PERIOD_OPTIONS = [
-  "Prehistorik",
-  "Arkaik",
-  "Klasik",
-  "Hellenistik",
-  "Roma",
-  "Bizans",
-  "Osmanlı",
-  "Diğer",
-];
-
 export default function Buluntu() {
   const [anakod, setAnakod] = useState([]);
   const [forms, setForms] = useState([]);
+  const [lookups, setLookups] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: "", text: "" });
@@ -140,6 +109,10 @@ export default function Buluntu() {
     })();
   }, [form.form_type]);
 
+  function lookupOptions(key) {
+    return Array.isArray(lookups?.[key]) ? lookups[key] : [];
+  }
+
   function adaptFieldDef(fd) {
     const base = {
       key: fd.key,
@@ -169,13 +142,14 @@ export default function Buluntu() {
     if (fd.data_type === "date") return { ...base, kind: "date" };
 
     if (fd.data_type === "multiselect") {
-      return { ...base, kind: "multiselect", options: fd.choices || [] };
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      return { ...base, kind: "multiselect", options };
     }
 
     if (fd.data_type === "choice" || fd.data_type === "select") {
-      // If choices exist, use a select; otherwise fall back to free text for now
-      if (Array.isArray(fd.choices) && fd.choices.length) {
-        return { ...base, kind: "enum", options: fd.choices || [] };
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      if (Array.isArray(options) && options.length) {
+        return { ...base, kind: "enum", options };
       }
       return { ...base, kind: "text" };
     }
@@ -204,7 +178,7 @@ export default function Buluntu() {
       return out;
     }
     return [];
-  }, [formSchema, effectiveFormType]);
+  }, [formSchema, effectiveFormType, lookups]);
 
   function renderDynamicFormSections() {
     if (schemaLoading) {
@@ -255,9 +229,13 @@ export default function Buluntu() {
         setAnakod(unwrapResults(mc));
 
         // Forms (admin-managed)
-        const f = await apiGet("/api/forms/?page_size=200&ordering=order");
+        const [f, lookupPayload] = await Promise.all([
+          apiGet("/api/forms/?page_size=200&ordering=order"),
+          apiGet("/api/lookups/"),
+        ]);
         const fr = unwrapResults(f);
         setForms(fr);
+        setLookups(lookupPayload || {});
 
         // Default form type: first form (or GENEL)
         if (fr.length) {
@@ -335,7 +313,8 @@ export default function Buluntu() {
       };
 
       const saved = await apiPost("/api/artifacts/", payload);
-      const fullNo = saved?.full_artifact_no || `${saved?.main_code_code || ""}${pad4(saved?.artifact_no || no)}`;
+      const fullNo =
+        saved?.full_artifact_no || `${saved?.main_code_code || ""}${formatArtifactNo(saved?.artifact_no || no)}`;
       setMsg({ type: "success", text: `${fullNo} buluntu numarası başarıyla kayıt edildi.` });
 
       // Reset most fields; keep Anakod + Form for rapid data entry
@@ -403,7 +382,12 @@ export default function Buluntu() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu No</label>
                 <div className="mt-1.5">
-                  <Input required value={pad4(form.artifact_no)} onChange={(e) => setField("artifact_no", e.target.value)} placeholder="0001" />
+                  <Input
+                    required
+                    value={formatArtifactNo(form.artifact_no)}
+                    onChange={(e) => setField("artifact_no", e.target.value)}
+                    placeholder="001"
+                  />
                 </div>
               </div>
 
@@ -472,9 +456,9 @@ export default function Buluntu() {
                 <div className="mt-1.5">
                   <Select required value={form.form_object} onChange={(e) => setField("form_object", e.target.value)}>
                     <option value="">Seçiniz...</option>
-                    {FORM_OBJECT_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {lookupOptions("FORM_OBJECT").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
                       </option>
                     ))}
                   </Select>
@@ -486,9 +470,9 @@ export default function Buluntu() {
                 <div className="mt-1.5">
                   <Select required value={form.production_material} onChange={(e) => setField("production_material", e.target.value)}>
                     <option value="">Seçiniz...</option>
-                    {PRODUCTION_MATERIAL_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {lookupOptions("PRODUCTION_MATERIAL").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
                       </option>
                     ))}
                   </Select>
@@ -498,7 +482,14 @@ export default function Buluntu() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Üretim Yeri</label>
                 <div className="mt-1.5">
-                  <Input value={form.production_site} onChange={(e) => setField("production_site", e.target.value)} placeholder="(opsiyonel)" />
+                  <Select value={form.production_site} onChange={(e) => setField("production_site", e.target.value)}>
+                    <option value="">Seçiniz...</option>
+                    {lookupOptions("PRODUCTION_SITE").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
@@ -507,9 +498,9 @@ export default function Buluntu() {
                 <div className="mt-1.5">
                   <Select value={form.period} onChange={(e) => setField("period", e.target.value)}>
                     <option value="">Seçiniz...</option>
-                    {PERIOD_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {lookupOptions("PERIOD").map((o) => (
+                      <option key={String(o.value)} value={String(o.value)}>
+                        {o.label}
                       </option>
                     ))}
                   </Select>
