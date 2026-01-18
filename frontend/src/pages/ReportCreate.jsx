@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiGet } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import { Card, CardBody, CardHeader, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -30,7 +30,9 @@ export default function ReportCreate() {
   const navigate = useNavigate();
   const [mainCodes, setMainCodes] = useState([]);
   const [artifacts, setArtifacts] = useState([]);
-
+  const [artifactQuery, setArtifactQuery] = useState("");
+  const [artifactLoading, setArtifactLoading] = useState(false);
+  const [reportTypes, setReportTypes] = useState([]);
   const [form, setForm] = useState({
     report_type: "",
     report_author: getCurrentUserName(),
@@ -55,7 +57,32 @@ export default function ReportCreate() {
         setArtifacts((artifactPayload.results || artifactPayload) ?? []);
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
+
+    apiGet("/api/report-types/?page_size=200")
+      .then((reportTypePayload) => setReportTypes((reportTypePayload.results || reportTypePayload) ?? []))
+      .catch((e) => setErr(e.message || "Rapor tipleri yüklenemedi."));
   }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      setArtifactLoading(true);
+      try {
+        const params = new URLSearchParams({ page_size: "50" });
+        if (artifactQuery.trim()) {
+          params.set("q", artifactQuery.trim());
+        }
+        const payload = await apiGet(`/api/artifacts/?${params.toString()}`);
+        setArtifacts((payload.results || payload) ?? []);
+      } catch (e) {
+        setErr(e.message || "Buluntular yüklenemedi.");
+      } finally {
+        setArtifactLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [artifactQuery]);
+
 
   const findingPlaces = useMemo(() => toUniqueFindingPlaces(mainCodes), [mainCodes]);
 
@@ -73,7 +100,8 @@ export default function ReportCreate() {
     setForm((prev) => ({ ...prev, artifacts: values }));
   }
 
-  function onSubmit(event) {
+  async function onSubmit(event) {
+
     event.preventDefault();
     setMsg("");
     setErr("");
@@ -83,7 +111,22 @@ export default function ReportCreate() {
       return;
     }
 
-    setMsg("Rapor kaydı hazır. Backend bağlantısı eklendiğinde kaydedilecektir.");
+    try {
+      const payload = {
+        report_type: form.report_type,
+        report_author: form.report_author,
+        finding_place: form.finding_place,
+        writing_date: form.writing_date,
+        work_year: form.work_year,
+        report_title: form.report_title || null,
+        report_description: form.report_description || null,
+        artifacts: form.artifacts || [],
+      };
+      await apiPost("/api/reports/", payload);
+      setMsg("Rapor başarıyla kaydedildi.");
+    } catch (e) {
+      setErr(e.message || "Rapor kaydedilemedi.");
+    }
   }
 
   return (
@@ -95,8 +138,8 @@ export default function ReportCreate() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}
-          >
+
+          <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}>
             Listeye Git
           </Button>
         </div>
@@ -118,11 +161,18 @@ export default function ReportCreate() {
                     onChange={(e) => onChangeField("report_type", e.target.value)}
                   >
                     <option value="">Seçiniz...</option>
-                    <option value="on-rapor">Ön Rapor</option>
-                    <option value="nihai-rapor">Nihai Rapor</option>
-                    <option value="bilimsel-rapor">Bilimsel Rapor</option>
+                    {reportTypes.map((type) => (
+                      <option key={type.id} value={String(type.id)}>
+                        {type.name}
+                      </option>
+                    ))}
                   </Select>
                 </div>
+                {!reportTypes.length ? (
+                  <p className="mt-1 text-xs text-slate-500">Rapor tipleri admin panelinden tanımlanabilir.</p>
+                ) : null}
+              </div>
+
               </div>
 
               <div>
@@ -200,6 +250,13 @@ export default function ReportCreate() {
               <div className="md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700">Buluntular</label>
                 <div className="mt-1.5">
+                  <Input
+                    value={artifactQuery}
+                    onChange={(e) => setArtifactQuery(e.target.value)}
+                    placeholder="Buluntu no, anakod veya notlara göre ara..."
+                    className="mb-2"
+                  />
+
                   <Select multiple value={form.artifacts} onChange={onChangeArtifacts}>
                     {artifacts.map((artifact) => (
                       <option key={artifact.id} value={String(artifact.id)}>
@@ -208,9 +265,15 @@ export default function ReportCreate() {
                     ))}
                   </Select>
                 </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {artifactLoading ? "Buluntular yükleniyor..." : "Bu rapora dahil edilecek buluntuları seçin."}
+                </p>
+
+
                 <p className="mt-1 text-xs text-slate-500">Bu rapora dahil edilecek buluntuları seçin.</p>
+
               </div>
-            </div>
+            
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" type="submit">

@@ -1,3 +1,41 @@
+import React from "react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
+const modules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link", "image"],
+    ["clean"],
+  ],
+};
+
+const formats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "list",
+  "bullet",
+  "link",
+  "image",
+];
+
+export default function RichTextEditor({ value, onChange, placeholder = "" }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white">
+      <ReactQuill
+        theme="snow"
+        value={value || ""}
+        onChange={onChange}
+        modules={modules}
+        formats={formats}
+        placeholder={placeholder}
+        className="[&_.ql-container]:min-h-[220px] [&_.ql-container]:rounded-b-2xl [&_.ql-toolbar]:rounded-t-2xl"
+
 import React, { useEffect, useRef, useState } from "react";
 
 function ToolbarButton({ onClick, children }) {
@@ -70,6 +108,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "" }) {
         onBlur={() => setIsFocused(false)}
         data-placeholder={placeholder}
         className="min-h-[220px] w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-slate-200 [&[data-placeholder]:empty:before]:text-slate-400 [&[data-placeholder]:empty:before]:content-[attr(data-placeholder)] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_th]:border [&_th]:border-slate-200 [&_th]:p-2"
+
       />
     </div>
   );
