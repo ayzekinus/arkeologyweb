@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiGet, apiPost } from "../api.js";
 import { Card, CardBody, CardHeader, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -29,6 +30,8 @@ export default function ReportCreate() {
   const navigate = useNavigate();
   const [mainCodes, setMainCodes] = useState([]);
   const [artifacts, setArtifacts] = useState([]);
+  const [reportTypes, setReportTypes] = useState([]);
+
 
   const [form, setForm] = useState({
     report_type: "",
@@ -55,6 +58,9 @@ export default function ReportCreate() {
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
 
+    apiGet("/api/report-types/?page_size=200")
+      .then((reportTypePayload) => setReportTypes((reportTypePayload.results || reportTypePayload) ?? []))
+      .catch((e) => setErr(e.message || "Rapor tipleri yüklenemedi."));
   }, []);
 
   const findingPlaces = useMemo(() => toUniqueFindingPlaces(mainCodes), [mainCodes]);
@@ -73,6 +79,7 @@ export default function ReportCreate() {
     setForm((prev) => ({ ...prev, artifacts: values }));
   }
 
+  async function onSubmit(event) {
 
     event.preventDefault();
     setMsg("");
@@ -83,7 +90,22 @@ export default function ReportCreate() {
       return;
     }
 
-
+    try {
+      const payload = {
+        report_type: form.report_type,
+        report_author: form.report_author,
+        finding_place: form.finding_place,
+        writing_date: form.writing_date,
+        work_year: form.work_year,
+        report_title: form.report_title || null,
+        report_description: form.report_description || null,
+        artifacts: form.artifacts || [],
+      };
+      await apiPost("/api/reports/", payload);
+      setMsg("Rapor başarıyla kaydedildi.");
+    } catch (e) {
+      setErr(e.message || "Rapor kaydedilemedi.");
+    }
   }
 
   return (
@@ -118,7 +140,17 @@ export default function ReportCreate() {
                     onChange={(e) => onChangeField("report_type", e.target.value)}
                   >
                     <option value="">Seçiniz...</option>
-
+                    {reportTypes.map((type) => (
+                      <option key={type.id} value={String(type.id)}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {!reportTypes.length ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Rapor tipleri admin panelinden tanımlanabilir.
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
