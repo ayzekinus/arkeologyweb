@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from django.db import models, transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 
 ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 BASE = 26
@@ -150,6 +151,51 @@ class Artifact(models.Model):
     @property
     def full_artifact_no(self) -> str:
         return f"{self.main_code.code}{self.artifact_no:04d}"
+
+    def save(self, *args, **kwargs):
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class ReportType(models.Model):
+    name = models.CharField(max_length=120, unique=True, verbose_name="Rapor Tipi")
+    description = models.TextField(blank=True, null=True, verbose_name="Açıklama")
+    order = models.PositiveIntegerField(default=0, verbose_name="Sıra")
+    is_active = models.BooleanField(default=True, verbose_name="Aktif")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("order", "name")
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class Report(models.Model):
+    year_validator = RegexValidator(regex=r"^\\d{4}$", message="Çalışma yılı 4 haneli olmalıdır.")
+
+    report_type = models.ForeignKey(ReportType, on_delete=models.PROTECT, related_name="reports", verbose_name="Rapor Tipi")
+    report_author = models.CharField(max_length=160, verbose_name="Raporu Hazırlayan")
+    finding_place = models.CharField(max_length=120, verbose_name="Buluntu Yeri")
+    writing_date = models.DateField(verbose_name="Yazım Tarihi")
+    work_year = models.CharField(max_length=4, validators=[year_validator], verbose_name="Çalışma Yılı")
+    report_title = models.CharField(max_length=255, blank=True, null=True, verbose_name="Rapor Başlık")
+    report_description = models.TextField(blank=True, null=True, verbose_name="Rapor Açıklama")
+    artifacts = models.ManyToManyField(Artifact, blank=True, related_name="reports", verbose_name="Buluntular")
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return self.report_title or f"Rapor {self.pk}"
 
     def save(self, *args, **kwargs):
         self.updated_at = timezone.now()
