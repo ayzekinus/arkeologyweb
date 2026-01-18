@@ -178,7 +178,6 @@ class ReportType(models.Model):
 
 class Report(models.Model):
     year_validator = RegexValidator(regex=r"^\d{4}$", message="Çalışma yılı 4 haneli olmalıdır.")
-
     report_type = models.ForeignKey(ReportType, on_delete=models.PROTECT, related_name="reports", verbose_name="Rapor Tipi")
     report_author = models.CharField(max_length=160, verbose_name="Raporu Hazırlayan")
     finding_place = models.CharField(max_length=120, verbose_name="Buluntu Yeri")
