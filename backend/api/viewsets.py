@@ -230,7 +230,7 @@ td.v{color:#0f172a}
 
 
 class MainCodeViewSet(viewsets.ModelViewSet):
-    queryset = MainCode.objects.all().order_by("-created_at")
+    queryset = MainCode.objects.select_related("finding_place").all().order_by("-created_at")
     serializer_class = MainCodeSerializer
 
     def get_queryset(self):
@@ -243,13 +243,13 @@ class MainCodeViewSet(viewsets.ModelViewSet):
 
         finding_place = qp.get("finding_place")
         if finding_place:
-            qs = qs.filter(finding_place__icontains=finding_place)
+            qs = qs.filter(finding_place__label__icontains=finding_place)
 
         q = qp.get("q")
         if q:
             qs = qs.filter(
                 Q(code__icontains=q)
-                | Q(finding_place__icontains=q)
+                | Q(finding_place__label__icontains=q)
                 | Q(plan_square__icontains=q)
                 | Q(description__icontains=q)
                 | Q(layer__icontains=q)
@@ -304,7 +304,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
 
         finding_place = qp.get("finding_place")
         if finding_place:
-            qs = qs.filter(main_code__finding_place__icontains=finding_place)
+            qs = qs.filter(main_code__finding_place__label__icontains=finding_place)
 
         artifact_no = qp.get("artifact_no")
         if artifact_no:
@@ -335,7 +335,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
         if q:
             qs = qs.filter(
                 Q(main_code__code__icontains=q)
-                | Q(main_code__finding_place__icontains=q)
+                | Q(main_code__finding_place__label__icontains=q)
                 | Q(production_material__icontains=q)
                 | Q(period__icontains=q)
                 | Q(notes__icontains=q)

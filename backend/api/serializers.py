@@ -3,10 +3,12 @@ from core.models import MainCode, Artifact, Report
 
 
 class MainCodeSerializer(serializers.ModelSerializer):
+    finding_place_label = serializers.CharField(source="finding_place.label", read_only=True)
+
     class Meta:
         model = MainCode
         fields = [
-            "id", "code", "finding_place", "plan_square", "description",
+            "id", "code", "finding_place", "finding_place_label", "plan_square", "description",
             "layer", "level", "grave_no", "gis",
             "created_at", "updated_at",
         ]
@@ -15,7 +17,7 @@ class MainCodeSerializer(serializers.ModelSerializer):
 
 class ArtifactSerializer(serializers.ModelSerializer):
     main_code_code = serializers.CharField(source="main_code.code", read_only=True)
-    main_code_finding_place = serializers.CharField(source="main_code.finding_place", read_only=True)
+    main_code_finding_place = serializers.CharField(source="main_code.finding_place.label", read_only=True)
     full_artifact_no = serializers.CharField(read_only=True)
 
     class Meta:

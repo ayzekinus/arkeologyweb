@@ -41,8 +41,12 @@ class MainCodeSequence(models.Model):
 
 class MainCode(models.Model):
     code = models.CharField(max_length=3, unique=True, db_index=True, verbose_name="Anakod")
-
-    finding_place = models.CharField(max_length=120, verbose_name="Buluntu Yeri")
+    finding_place = models.ForeignKey(
+        "api.LookupItem",
+        on_delete=models.PROTECT,
+        related_name="main_codes",
+        verbose_name="Buluntu Yeri",
+    )
     plan_square = models.CharField(max_length=60, blank=True, null=True, verbose_name="PlanKare")
     description = models.TextField(blank=True, null=True, verbose_name="Açıklama")
 

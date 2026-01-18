@@ -372,7 +372,7 @@ export default function Buluntu() {
                     <option value="">Seçiniz...</option>
                     {anakod.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} — {a.finding_place}
+                        {a.code} — {a.finding_place_label || ""}
                       </option>
                     ))}
                   </Select>
@@ -419,7 +419,7 @@ export default function Buluntu() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Yeri (Anakod)</label>
                 <div className="mt-1.5">
-                  <Input value={selectedMainCode?.finding_place || ""} readOnly placeholder="Anakod seçiniz" />
+                  <Input value={selectedMainCode?.finding_place_label || ""} readOnly placeholder="Anakod seçiniz" />
                 </div>
               </div>
 

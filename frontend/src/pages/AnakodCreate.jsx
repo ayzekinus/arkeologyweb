@@ -1,14 +1,16 @@
-import React, { useState } from "react";
-import { apiPost } from "../api.js";
+import React, { useEffect, useState } from "react";
+import { apiGet, apiPost } from "../api.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
+import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
 
 export default function AnakodCreate() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [form, setForm] = useState({
     finding_place: "",
@@ -19,6 +21,12 @@ export default function AnakodCreate() {
     grave_no: "",
     gis: "",
   });
+
+  useEffect(() => {
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
+      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -65,12 +73,18 @@ export default function AnakodCreate() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
                 <div className="mt-1.5">
-                  <Input
+                  <Select
                     required
                     value={form.finding_place}
                     onChange={(e) => setForm((p) => ({ ...p, finding_place: e.target.value }))}
-                    placeholder="Örn: Açma / Sondaj / Alan..."
-                  />
+                  >
+                    <option value="">Seçiniz...</option>
+                    {findingPlaceOptions.map((item) => (
+                      <option key={String(item.id)} value={String(item.id)}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
