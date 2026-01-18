@@ -85,6 +85,8 @@ export default function AnakodList() {
   function openArtifact(a) {
     setSelectedArtifact(a);
     setArtifactDetailOpen(true);
+    setDetailOpen(false);
+    setSelected(null);
   }
 
   async function onDelete(id) {

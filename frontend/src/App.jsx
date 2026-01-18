@@ -30,6 +30,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="olustur" replace /> },
           { path: "olustur", element: <BuluntuCreate /> },
           { path: "listele", element: <BuluntuList /> },
+          { path: "envanterlik", element: <BuluntuList inventoryOnly /> },
         ],
       },
     ],
