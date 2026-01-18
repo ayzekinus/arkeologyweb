@@ -96,7 +96,6 @@ export default function ReportCreate() {
   const navigate = useNavigate();
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
-  const formId = "report-create-form";
 
   const [mainCodes, setMainCodes] = useState([]);
 
@@ -240,9 +239,6 @@ export default function ReportCreate() {
           <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}>
             Listeye Git
           </Button>
-          <Button type="submit" form={formId}>
-            Kaydet
-          </Button>
         </div>
       </div>
 
@@ -254,7 +250,7 @@ export default function ReportCreate() {
           <CardTitle>Rapor Bilgileri</CardTitle>
         </CardHeader>
         <CardBody>
-          <form id={formId} onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
                 <label className="text-sm font-semibold text-slate-700">Rapor Tipi</label>
