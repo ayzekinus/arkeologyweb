@@ -1,10 +1,3 @@
-import React from "react";
-import { Card, CardBody, CardHeader, CardTitle } from "../ui/Card.jsx";
-import Button from "../ui/Button.jsx";
-import { useNavigate } from "react-router-dom";
-
-export default function ReportList() {
-  const navigate = useNavigate();
 
   return (
     <div className="space-y-4">
@@ -26,9 +19,7 @@ export default function ReportList() {
           <CardTitle>Raporlar</CardTitle>
         </CardHeader>
         <CardBody>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
-            Henüz rapor bulunmuyor.
-          </div>
+
         </CardBody>
       </Card>
     </div>

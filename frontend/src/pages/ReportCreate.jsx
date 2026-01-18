@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiGet } from "../api.js";
 import { Card, CardBody, CardHeader, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -55,6 +54,7 @@ export default function ReportCreate() {
         setArtifacts((artifactPayload.results || artifactPayload) ?? []);
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
+
   }, []);
 
   const findingPlaces = useMemo(() => toUniqueFindingPlaces(mainCodes), [mainCodes]);
@@ -73,7 +73,7 @@ export default function ReportCreate() {
     setForm((prev) => ({ ...prev, artifacts: values }));
   }
 
-  function onSubmit(event) {
+
     event.preventDefault();
     setMsg("");
     setErr("");
@@ -83,7 +83,7 @@ export default function ReportCreate() {
       return;
     }
 
-    setMsg("Rapor kaydı hazır. Backend bağlantısı eklendiğinde kaydedilecektir.");
+
   }
 
   return (
@@ -118,10 +118,7 @@ export default function ReportCreate() {
                     onChange={(e) => onChangeField("report_type", e.target.value)}
                   >
                     <option value="">Seçiniz...</option>
-                    <option value="on-rapor">Ön Rapor</option>
-                    <option value="nihai-rapor">Nihai Rapor</option>
-                    <option value="bilimsel-rapor">Bilimsel Rapor</option>
-                  </Select>
+
                 </div>
               </div>
 
