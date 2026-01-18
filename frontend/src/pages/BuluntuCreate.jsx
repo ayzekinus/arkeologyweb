@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiGet, apiPost, apiPatch } from "../api.js";
 import SchemaFields from "../components/SchemaFields.jsx";
-import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA } from "../schemas/artifactSchemas.js";
+import { DETAILS_SCHEMA } from "../schemas/artifactSchemas.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -186,9 +186,6 @@ export default function BuluntuCreate() {
   function setDetail(k, v) {
     setForm((p) => ({ ...p, details: { ...(p.details || {}), [k]: v } }));
   }
-  function setMeasure(k, v) {
-    setForm((p) => ({ ...p, measurements: { ...(p.measurements || {}), [k]: v } }));
-  }
 
   function lookupOptions(key) {
     return Array.isArray(lookups?.[key]) ? lookups[key] : [];
@@ -262,17 +259,6 @@ export default function BuluntuCreate() {
     if (!schema.length) return null;
     const title = form.form_type === "GENEL" ? "Form Detayları" : `${form.form_type} Detayları`;
     return <SchemaFields title={title} schema={schema} data={form.details || {}} onChange={setDetail} />;
-  }
-
-  function renderMeasurements() {
-    return (
-      <SchemaFields
-        title="Ölçü Bilgileri"
-        schema={MEASUREMENT_SCHEMA}
-        data={form.measurements || {}}
-        onChange={setMeasure}
-      />
-    );
   }
 
   async function onSubmit(e) {
@@ -527,23 +513,31 @@ export default function BuluntuCreate() {
                 </label>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Kaynak / Referans</label>
-                <div className="mt-1.5">
-                  <Textarea
-                    rows={3}
-                    value={form.source_and_reference}
-                    onChange={(e) => setForm((p) => ({ ...p, source_and_reference: e.target.value }))}
-                  />
-                </div>
-              </div>
+              {editingId ? (
+                <>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700">Kaynak / Referans</label>
+                    <div className="mt-1.5">
+                      <Textarea
+                        rows={3}
+                        value={form.source_and_reference}
+                        onChange={(e) => setForm((p) => ({ ...p, source_and_reference: e.target.value }))}
+                      />
+                    </div>
+                  </div>
 
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Notlar / Açıklama</label>
-                <div className="mt-1.5">
-                  <Textarea rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-                </div>
-              </div>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700">Notlar / Açıklama</label>
+                    <div className="mt-1.5">
+                      <Textarea
+                        rows={3}
+                        value={form.notes}
+                        onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </div>
 
             {schemaLoading ? (
@@ -583,7 +577,6 @@ export default function BuluntuCreate() {
             {!schemaLoading && !schemaError && !dynamicSections.length ? (
               <>
                 {renderFormFields()}
-                {renderMeasurements()}
               </>
             ) : null}
 
