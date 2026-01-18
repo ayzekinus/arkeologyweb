@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import MainCode, Artifact
+from core.models import MainCode, Artifact, Report
 
 
 class MainCodeSerializer(serializers.ModelSerializer):
@@ -63,3 +63,36 @@ class ArtifactSerializer(serializers.ModelSerializer):
             if qs.exists():
                 raise serializers.ValidationError({"artifact_no": "Bu Anakod için bu Buluntu No zaten mevcut."})
         return attrs
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    artifact_count = serializers.IntegerField(source="artifacts.count", read_only=True)
+    artifacts = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Artifact.objects.all(),
+        required=False,
+    )
+
+    class Meta:
+        model = Report
+        fields = [
+            "id",
+            "report_type",
+            "prepared_by",
+            "finding_place",
+            "writing_date",
+            "study_year",
+            "title",
+            "description",
+            "artifacts",
+            "artifact_count",
+            "images",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "artifact_count", "created_at", "updated_at"]
+
+    def validate_study_year(self, value):
+        if value < 1000 or value > 9999:
+            raise serializers.ValidationError("Çalışma Yılı 4 haneli olmalıdır.")
+        return value

@@ -13,3 +13,8 @@ body {
   @apply bg-slate-50 text-slate-900;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
+
+.rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
