@@ -8,6 +8,7 @@ import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import Pagination from "../ui/Pagination.jsx";
+import { IconDelete, IconView } from "../ui/Icons.jsx";
 
 function buildQuery(params) {
   const qs = new URLSearchParams();
@@ -190,11 +191,23 @@ export default function AnakodList() {
                     <td className="border-b border-slate-100 px-2 py-2">{(r.created_at || "").slice(0, 10)}</td>
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => openDetail(r)}>
-                          Görüntüle
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => openDetail(r)}
+                          aria-label="Görüntüle"
+                          title="Görüntüle"
+                        >
+                          <IconView />
                         </Button>
-                        <Button variant="danger" className="py-1.5" onClick={() => onDelete(r.id)}>
-                          Sil
+                        <Button
+                          variant="danger"
+                          className="py-1.5"
+                          onClick={() => onDelete(r.id)}
+                          aria-label="Sil"
+                          title="Sil"
+                        >
+                          <IconDelete />
                         </Button>
                       </div>
                     </td>

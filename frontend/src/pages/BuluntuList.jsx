@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiDelete } from "../api.js";
 import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
+import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -370,32 +371,64 @@ export default function BuluntuList({ inventoryOnly = false }) {
 
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => openDetail(r)}>
-                          Görüntüle
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => openDetail(r)}
+                          aria-label="Görüntüle"
+                          title="Görüntüle"
+                        >
+                          <IconView />
                         </Button>
                         <Button
                           variant="secondary"
                           className="py-1.5"
                           onClick={() => navigate(`/buluntu/olustur?id=${r.id}`)}
+                          aria-label="Düzenle"
+                          title="Düzenle"
                         >
-                          Düzenle
+                          <IconEdit />
                         </Button>
-                        <Button variant="danger" className="py-1.5" onClick={() => onDelete(r.id)}>
-                          Sil
+                        <Button
+                          variant="danger"
+                          className="py-1.5"
+                          onClick={() => onDelete(r.id)}
+                          aria-label="Sil"
+                          title="Sil"
+                        >
+                          <IconDelete />
                         </Button>
                       </div>
                     </td>
 
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}>
-                          PDF
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}
+                          aria-label="PDF"
+                          title="PDF"
+                        >
+                          <IconPdf />
                         </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}>
-                          EXCEL
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}
+                          aria-label="XLS"
+                          title="XLS"
+                        >
+                          <IconXls />
                         </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "csv", r.full_artifact_no)}>
-                          CSV
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "csv", r.full_artifact_no)}
+                          aria-label="CSV"
+                          title="CSV"
+                        >
+                          <IconCsv />
                         </Button>
                       </div>
                     </td>

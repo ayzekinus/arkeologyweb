@@ -7,6 +7,7 @@ import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Textarea from "../ui/Textarea.jsx";
+import { IconDelete, IconView } from "../ui/Icons.jsx";
 
 export default function Anakod() {
   const [rows, setRows] = useState([]);
@@ -222,11 +223,23 @@ export default function Anakod() {
                     <td className="border-b border-slate-100 px-2 py-2">{r.grave_no || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" onClick={() => openMainCodeDetail(r)} className="py-1.5">
-                          Görüntüle
+                        <Button
+                          variant="secondary"
+                          onClick={() => openMainCodeDetail(r)}
+                          className="py-1.5"
+                          aria-label="Görüntüle"
+                          title="Görüntüle"
+                        >
+                          <IconView />
                         </Button>
-                        <Button variant="danger" onClick={() => onDelete(r.id)} className="py-1.5">
-                          Sil
+                        <Button
+                          variant="danger"
+                          onClick={() => onDelete(r.id)}
+                          className="py-1.5"
+                          aria-label="Sil"
+                          title="Sil"
+                        >
+                          <IconDelete />
                         </Button>
                       </div>
                     </td>
