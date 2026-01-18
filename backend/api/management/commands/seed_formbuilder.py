@@ -9,6 +9,8 @@ try:
         ArtifactForm,
         ArtifactFormField,
         FieldDefinition,
+        LookupItem,
+        LookupList,
         MaterialAlias,
         MaterialFormMap,
         MaterialGroup,
@@ -19,6 +21,8 @@ except Exception:  # pragma: no cover
         ArtifactForm,
         ArtifactFormField,
         FieldDefinition,
+        LookupItem,
+        LookupList,
         MaterialAlias,
         MaterialFormMap,
         MaterialGroup,
@@ -54,6 +58,71 @@ TEXTURE = [
     {"value": "1", "label": "Orta"},
     {"value": "2", "label": "Yumuşak"},
 ]
+
+LOOKUPS = {
+    "FORM_OBJECT": [
+        {"value": "Seramik Parça", "label": "Seramik Parça", "order": 10},
+        {"value": "Metal Parça", "label": "Metal Parça", "order": 20},
+        {"value": "Cam Parça", "label": "Cam Parça", "order": 30},
+        {"value": "Mimari Parça", "label": "Mimari Parça", "order": 40},
+        {"value": "Sikke", "label": "Sikke", "order": 50},
+        {"value": "Figürin", "label": "Figürin", "order": 60},
+        {"value": "Terracotta", "label": "Terracotta", "order": 70},
+        {"value": "Mezar", "label": "Mezar", "order": 80},
+        {"value": "Diğer", "label": "Diğer", "order": 90},
+    ],
+    "PRODUCTION_MATERIAL": [
+        {"value": "Seramik", "label": "Seramik", "order": 10},
+        {"value": "Terracotta", "label": "Terracotta", "order": 20},
+        {"value": "Figürin", "label": "Figürin", "order": 30},
+        {"value": "Metal", "label": "Metal", "order": 40},
+        {"value": "Cam", "label": "Cam", "order": 50},
+        {"value": "Taş", "label": "Taş", "order": 60},
+        {"value": "Kemik", "label": "Kemik", "order": 70},
+        {"value": "Diğer", "label": "Diğer", "order": 80},
+    ],
+    "PERIOD": [
+        {"value": "Prehistorik", "label": "Prehistorik", "order": 10},
+        {"value": "Arkaik", "label": "Arkaik", "order": 20},
+        {"value": "Klasik", "label": "Klasik", "order": 30},
+        {"value": "Hellenistik", "label": "Hellenistik", "order": 40},
+        {"value": "Roma", "label": "Roma", "order": 50},
+        {"value": "Bizans", "label": "Bizans", "order": 60},
+        {"value": "Osmanlı", "label": "Osmanlı", "order": 70},
+        {"value": "Diğer", "label": "Diğer", "order": 80},
+    ],
+    "PRODUCTION_SITE": [
+        {"value": "Bilinmiyor", "label": "Bilinmiyor", "order": 10},
+        {"value": "Yerel Üretim", "label": "Yerel Üretim", "order": 20},
+        {"value": "İthal", "label": "İthal", "order": 30},
+    ],
+    "EMPEROR": [
+        {"value": "Augustus", "label": "Augustus", "order": 10},
+        {"value": "Hadrianus", "label": "Hadrianus", "order": 20},
+        {"value": "Traianus", "label": "Traianus", "order": 30},
+    ],
+    "COLOR": [
+        {"value": "Kırmızı", "label": "Kırmızı", "order": 10},
+        {"value": "Siyah", "label": "Siyah", "order": 20},
+        {"value": "Kahverengi", "label": "Kahverengi", "order": 30},
+        {"value": "Beyaz", "label": "Beyaz", "order": 40},
+        {"value": "Gri", "label": "Gri", "order": 50},
+    ],
+    "GRAVE_TYPE": [
+        {"value": "Sanduka", "label": "Sanduka", "order": 10},
+        {"value": "Küp", "label": "Küp", "order": 20},
+        {"value": "Kaya Mezar", "label": "Kaya Mezar", "order": 30},
+        {"value": "Toprak", "label": "Toprak", "order": 40},
+    ],
+    "BURIAL_FORM": [
+        {"value": "İnhumasyon", "label": "İnhumasyon", "order": 10},
+        {"value": "Kremasyon", "label": "Kremasyon", "order": 20},
+    ],
+    "BURIAL_TYPE": [
+        {"value": "Tek Gömü", "label": "Tek Gömü", "order": 10},
+        {"value": "Çoklu Gömü", "label": "Çoklu Gömü", "order": 20},
+    ],
+}
 
 
 FORMS = [
@@ -255,6 +324,8 @@ class Command(BaseCommand):
             MaterialFormMap.objects.all().delete()
             MaterialAlias.objects.all().delete()
             MaterialGroup.objects.all().delete()
+            LookupItem.objects.all().delete()
+            LookupList.objects.all().delete()
             ArtifactForm.objects.all().delete()
             FieldDefinition.objects.all().delete()
 
@@ -330,5 +401,27 @@ class Command(BaseCommand):
             MaterialAlias.objects.update_or_create(name=name, defaults={"group": ceramic})
         for name in ["Mezar"]:
             MaterialAlias.objects.update_or_create(name=name, defaults={"group": grave})
+
+        # Lookup lists + items
+        for key, items in LOOKUPS.items():
+            lookup, _ = LookupList.objects.update_or_create(
+                key=key,
+                defaults={
+                    "title": key.replace("_", " ").title(),
+                    "description": "",
+                    "order": 99,
+                    "is_active": True,
+                },
+            )
+            for item in items:
+                LookupItem.objects.update_or_create(
+                    lookup=lookup,
+                    value=item["value"],
+                    defaults={
+                        "label": item.get("label", item["value"]),
+                        "order": item.get("order", 99),
+                        "is_active": True,
+                    },
+                )
 
         self.stdout.write(self.style.SUCCESS("Form Builder seed completed."))

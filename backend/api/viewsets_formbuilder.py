@@ -1,5 +1,13 @@
 from collections import OrderedDict
 
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models import ArtifactForm, ArtifactFormField
+from .serializers_formbuilder import ArtifactFormSerializer
+
+
 def _default_unit_options(unit_group: str):
     # Provide sensible defaults when unit choices are not explicitly defined in FormBuilder.
     if unit_group == "length":
@@ -19,12 +27,6 @@ def _default_unit_options(unit_group: str):
             {"value": "l", "label": "l"},
         ]
     return []
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from .models import ArtifactForm, ArtifactFormField
-from .serializers_formbuilder import ArtifactFormSerializer
 
 
 class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
@@ -78,7 +80,7 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                     "list_type": fd.list_type,
                     "unit_group": fd.unit_group,
                     "unit_options": (fd.choices or _default_unit_options(fd.unit_group)) if fd.unit_group else [],
-"choices": [] if fd.unit_group else (fd.choices or []),
+                    "choices": [] if fd.unit_group else (fd.choices or []),
                 }
             )
 

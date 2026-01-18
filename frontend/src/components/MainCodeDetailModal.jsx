@@ -36,21 +36,21 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [ordering, setOrdering] = useState("-created_at");
-  const [q, setQ] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [qDraft, setQDraft] = useState("");
 
   async function loadArtifacts(nextPage = page) {
     if (!mc?.id) return;
     setLoading(true);
     try {
-      const q = buildQuery({
+      const query = buildQuery({
         main_code: mc.id,
         ordering,
-        q,
+        q: searchQuery,
         page: nextPage,
         page_size: pageSize,
       });
-      const data = await apiGet(`/api/artifacts/?${q}`);
+      const data = await apiGet(`/api/artifacts/?${query}`);
       const r = data.results || data;
       setArtifacts(r || []);
       setCount(data.count ?? (Array.isArray(r) ? r.length : 0));
@@ -64,19 +64,19 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
 
   // reset paging when mc changes or modal opens
 
-function applySearch() {
-  setQ(String(qDraft || "").trim());
-  setPage(1);
-}
+  function applySearch() {
+    setSearchQuery(String(qDraft || "").trim());
+    setPage(1);
+  }
 
-function clearSearch() {
-  setQDraft("");
-  setQ("");
-  setPage(1);
-}
+  function clearSearch() {
+    setQDraft("");
+    setSearchQuery("");
+    setPage(1);
+  }
   useEffect(() => {
     if (!open || !mc?.id) return;
-    setQ("");
+    setSearchQuery("");
     setQDraft("");
     setPage(1);
     loadArtifacts(1);
@@ -87,7 +87,7 @@ function clearSearch() {
     if (!open || !mc?.id) return;
     loadArtifacts(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, ordering, q]);
+  }, [page, pageSize, ordering, searchQuery]);
 
   return (
     <Modal open={open} title={title} onClose={onClose} width="min(1100px, 100%)">
