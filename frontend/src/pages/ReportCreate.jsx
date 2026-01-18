@@ -33,11 +33,7 @@ export default function ReportCreate() {
   const [artifactQuery, setArtifactQuery] = useState("");
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [reportTypes, setReportTypes] = useState([]);
-
-
   const [reportTypes, setReportTypes] = useState([]);
-
-
   const [form, setForm] = useState({
     report_type: "",
     report_author: getCurrentUserName(),
@@ -64,6 +60,7 @@ export default function ReportCreate() {
       .then(([mainCodePayload, artifactPayload]) => {
         setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
         setArtifacts((artifactPayload.results || artifactPayload) ?? []);
+
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
 
@@ -147,8 +144,8 @@ export default function ReportCreate() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}
-          >
+
+          <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}>
             Listeye Git
           </Button>
         </div>
@@ -178,6 +175,9 @@ export default function ReportCreate() {
                   </Select>
                 </div>
                 {!reportTypes.length ? (
+                  <p className="mt-1 text-xs text-slate-500">Rapor tipleri admin panelinden tanımlanabilir.</p>
+                ) : null}
+
                   <p className="mt-1 text-xs text-slate-500">
                     Rapor tipleri admin panelinden tanımlanabilir.
                   </p>
@@ -189,6 +189,7 @@ export default function ReportCreate() {
                     </p>
                   ) : null}
                 </div>
+
               </div>
 
               <div>
@@ -285,7 +286,9 @@ export default function ReportCreate() {
                   {artifactLoading ? "Buluntular yükleniyor..." : "Bu rapora dahil edilecek buluntuları seçin."}
                 </p>
 
+
                 <p className="mt-1 text-xs text-slate-500">Bu rapora dahil edilecek buluntuları seçin.</p>
+
               </div>
             </div>
 
