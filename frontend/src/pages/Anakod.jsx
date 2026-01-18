@@ -6,6 +6,7 @@ import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
+import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
 import { IconDelete, IconView } from "../ui/Icons.jsx";
 
@@ -21,6 +22,7 @@ export default function Anakod() {
 
   const [artifactDetailOpen, setArtifactDetailOpen] = useState(false);
   const [selectedArtifact, setSelectedArtifact] = useState(null);
+  const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [form, setForm] = useState({
     finding_place: "",
@@ -44,6 +46,12 @@ export default function Anakod() {
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  useEffect(() => {
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
+      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
 
   async function onCreate(e) {
@@ -115,11 +123,18 @@ export default function Anakod() {
             <div>
               <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
               <div className="mt-1.5">
-                <Input
+                <Select
                   required
                   value={form.finding_place}
                   onChange={(e) => setForm((p) => ({ ...p, finding_place: e.target.value }))}
-                />
+                >
+                  <option value="">Seçiniz...</option>
+                  {findingPlaceOptions.map((item) => (
+                    <option key={String(item.id)} value={String(item.id)}>
+                      {item.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
 
@@ -216,7 +231,7 @@ export default function Anakod() {
                 {rows.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="border-b border-slate-100 px-2 py-2 font-semibold">{r.code}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.finding_place}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.finding_place_label || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.plan_square || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.layer || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.level || ""}</td>

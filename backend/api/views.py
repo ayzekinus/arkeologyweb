@@ -34,7 +34,10 @@ def lookups(request):
     ).order_by("order", "title")
 
     payload = {
-        lookup.key: [{"value": item.value, "label": item.label} for item in lookup.items.all()]
+        lookup.key: [
+            {"id": item.id, "value": item.value, "label": item.label}
+            for item in lookup.items.all()
+        ]
         for lookup in lists
     }
     return Response(payload)

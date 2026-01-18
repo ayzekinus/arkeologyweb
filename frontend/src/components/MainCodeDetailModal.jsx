@@ -98,7 +98,7 @@ export default function MainCodeDetailModal({ open, onClose, mc, onOpenArtifact 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Panel title="Anakod Bilgileri">
             <Row label="Anakod" value={mc.code} />
-            <Row label="Buluntu Yeri" value={mc.finding_place} />
+            <Row label="Buluntu Yeri" value={mc.finding_place_label || ""} />
             <Row label="PlanKare" value={mc.plan_square || ""} />
             <Row label="Tabaka" value={mc.layer || ""} />
             <Row label="Seviye" value={mc.level || ""} />

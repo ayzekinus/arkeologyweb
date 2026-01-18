@@ -48,6 +48,11 @@ export default function Layout() {
             <NavItem to="/buluntu/listele">Listele</NavItem>
             <NavItem to="/buluntu/envanterlik">Envanterlik</NavItem>
           </NavGroup>
+
+          <NavGroup title="Rapor">
+            <NavItem to="/rapor/olustur">Rapor Oluştur</NavItem>
+            <NavItem to="/rapor/listele">Rapor Listele</NavItem>
+          </NavGroup>
         </nav>
       </aside>
 
