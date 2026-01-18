@@ -30,6 +30,11 @@ export default function ReportCreate() {
   const navigate = useNavigate();
   const [mainCodes, setMainCodes] = useState([]);
   const [artifacts, setArtifacts] = useState([]);
+  const [artifactQuery, setArtifactQuery] = useState("");
+  const [artifactLoading, setArtifactLoading] = useState(false);
+  const [reportTypes, setReportTypes] = useState([]);
+
+
   const [reportTypes, setReportTypes] = useState([]);
 
 
@@ -48,6 +53,10 @@ export default function ReportCreate() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
+    apiGet("/api/main-codes/?page_size=500")
+      .then((mainCodePayload) => {
+        setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
+
     Promise.all([
       apiGet("/api/main-codes/?page_size=500"),
       apiGet("/api/artifacts/?page_size=500"),
@@ -62,6 +71,27 @@ export default function ReportCreate() {
       .then((reportTypePayload) => setReportTypes((reportTypePayload.results || reportTypePayload) ?? []))
       .catch((e) => setErr(e.message || "Rapor tipleri yüklenemedi."));
   }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      setArtifactLoading(true);
+      try {
+        const params = new URLSearchParams({ page_size: "50" });
+        if (artifactQuery.trim()) {
+          params.set("q", artifactQuery.trim());
+        }
+        const payload = await apiGet(`/api/artifacts/?${params.toString()}`);
+        setArtifacts((payload.results || payload) ?? []);
+      } catch (e) {
+        setErr(e.message || "Buluntular yüklenemedi.");
+      } finally {
+        setArtifactLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [artifactQuery]);
+
 
   const findingPlaces = useMemo(() => toUniqueFindingPlaces(mainCodes), [mainCodes]);
 
@@ -146,6 +176,13 @@ export default function ReportCreate() {
                       </option>
                     ))}
                   </Select>
+                </div>
+                {!reportTypes.length ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Rapor tipleri admin panelinden tanımlanabilir.
+                  </p>
+                ) : null}
+
                   {!reportTypes.length ? (
                     <p className="mt-1 text-xs text-slate-500">
                       Rapor tipleri admin panelinden tanımlanabilir.
@@ -229,6 +266,13 @@ export default function ReportCreate() {
               <div className="md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700">Buluntular</label>
                 <div className="mt-1.5">
+                  <Input
+                    value={artifactQuery}
+                    onChange={(e) => setArtifactQuery(e.target.value)}
+                    placeholder="Buluntu no, anakod veya notlara göre ara..."
+                    className="mb-2"
+                  />
+
                   <Select multiple value={form.artifacts} onChange={onChangeArtifacts}>
                     {artifacts.map((artifact) => (
                       <option key={artifact.id} value={String(artifact.id)}>
@@ -237,6 +281,10 @@ export default function ReportCreate() {
                     ))}
                   </Select>
                 </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {artifactLoading ? "Buluntular yükleniyor..." : "Bu rapora dahil edilecek buluntuları seçin."}
+                </p>
+
                 <p className="mt-1 text-xs text-slate-500">Bu rapora dahil edilecek buluntuları seçin.</p>
               </div>
             </div>
