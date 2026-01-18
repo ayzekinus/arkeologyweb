@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import MainCode, Artifact, Report, ReportType
+from core.models import MainCode, Artifact
 
 
 class MainCodeSerializer(serializers.ModelSerializer):
@@ -63,32 +63,3 @@ class ArtifactSerializer(serializers.ModelSerializer):
             if qs.exists():
                 raise serializers.ValidationError({"artifact_no": "Bu Anakod için bu Buluntu No zaten mevcut."})
         return attrs
-
-
-class ReportTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ReportType
-        fields = ["id", "name", "description", "order", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-
-class ReportSerializer(serializers.ModelSerializer):
-    report_type_name = serializers.CharField(source="report_type.name", read_only=True)
-
-    class Meta:
-        model = Report
-        fields = [
-            "id",
-            "report_type",
-            "report_type_name",
-            "report_author",
-            "finding_place",
-            "writing_date",
-            "work_year",
-            "report_title",
-            "report_description",
-            "artifacts",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "created_at", "updated_at", "report_type_name"]

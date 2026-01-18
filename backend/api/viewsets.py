@@ -11,8 +11,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from core.models import Artifact, MainCode, Report, ReportType
-from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer, ReportTypeSerializer
+from core.models import Artifact, MainCode
+from .serializers import ArtifactSerializer, MainCodeSerializer
 
 
 def _flatten(prefix: str, obj: Any, out: Dict[str, str]) -> None:
@@ -269,22 +269,6 @@ class MainCodeViewSet(viewsets.ModelViewSet):
         # code is assigned automatically
         code = MainCode.allocate_next_code()
         serializer.save(code=code)
-
-
-class ReportTypeViewSet(viewsets.ModelViewSet):
-    serializer_class = ReportTypeSerializer
-    queryset = ReportType.objects.all()
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if self.request.query_params.get("all") == "1":
-            return qs
-        return qs.filter(is_active=True)
-
-
-class ReportViewSet(viewsets.ModelViewSet):
-    serializer_class = ReportSerializer
-    queryset = Report.objects.all().prefetch_related("artifacts", "report_type")
 
 
 class ArtifactViewSet(viewsets.ModelViewSet):
