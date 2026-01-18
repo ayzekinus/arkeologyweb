@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MainCode, Artifact, MainCodeSequence
+from .models import MainCode, Artifact, MainCodeSequence, Report
 
 @admin.register(MainCode)
 class MainCodeAdmin(admin.ModelAdmin):
@@ -17,3 +17,19 @@ class ArtifactAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
 admin.site.register(MainCodeSequence)
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "report_type",
+        "prepared_by",
+        "finding_place",
+        "study_year",
+        "writing_date",
+        "created_at",
+    )
+    search_fields = ("title", "prepared_by", "finding_place")
+    list_filter = ("report_type", "study_year")
+    filter_horizontal = ("artifacts",)
+    ordering = ("-created_at",)

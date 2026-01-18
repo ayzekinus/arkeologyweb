@@ -154,3 +154,36 @@ class Artifact(models.Model):
     def save(self, *args, **kwargs):
         self.updated_at = timezone.now()
         super().save(*args, **kwargs)
+
+
+class Report(models.Model):
+    REPORT_TYPES = (
+        ("GENEL", "Genel"),
+        ("KAZI", "Kazı"),
+        ("LAB", "Laboratuvar"),
+        ("KONSERVASYON", "Konservasyon"),
+        ("DIGER", "Diğer"),
+    )
+
+    report_type = models.CharField(max_length=30, choices=REPORT_TYPES, verbose_name="Rapor Tipi")
+    prepared_by = models.CharField(max_length=120, verbose_name="Raporu Hazırlayan")
+    finding_place = models.CharField(max_length=120, verbose_name="Buluntu Yeri")
+    writing_date = models.DateField(verbose_name="Yazım Tarihi")
+    study_year = models.PositiveIntegerField(verbose_name="Çalışma Yılı")
+    title = models.CharField(max_length=255, verbose_name="Rapor Başlığı")
+    description = models.TextField(blank=True, default="", verbose_name="Rapor Açıklama")
+    artifacts = models.ManyToManyField(Artifact, related_name="reports", blank=True, verbose_name="Buluntular")
+    images = models.JSONField(default=list, blank=True, verbose_name="Fotoğraflar")
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, *args, **kwargs):
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
