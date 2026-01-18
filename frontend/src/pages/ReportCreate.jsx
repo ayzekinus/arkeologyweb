@@ -32,6 +32,7 @@ export default function ReportCreate() {
   const [artifacts, setArtifacts] = useState([]);
   const [reportTypes, setReportTypes] = useState([]);
 
+
   const [form, setForm] = useState({
     report_type: "",
     report_author: getCurrentUserName(),
@@ -79,6 +80,7 @@ export default function ReportCreate() {
   }
 
   async function onSubmit(event) {
+
     event.preventDefault();
     setMsg("");
     setErr("");
