@@ -11,131 +11,67 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql="""
-                    CREATE TABLE IF NOT EXISTS core_report (
-                        id BIGSERIAL PRIMARY KEY,
-                        report_type VARCHAR(30) NOT NULL,
-                        prepared_by VARCHAR(120) NOT NULL,
-                        finding_place VARCHAR(120) NOT NULL,
-                        writing_date DATE NOT NULL,
-                        study_year INTEGER NOT NULL,
-                        title VARCHAR(255) NOT NULL,
-                        description TEXT NOT NULL DEFAULT '',
-                        images JSONB NOT NULL DEFAULT '[]'::jsonb,
-                        created_at TIMESTAMPTZ NOT NULL,
-                        updated_at TIMESTAMPTZ NOT NULL
-                    );
-                    """,
-                    reverse_sql="DROP TABLE IF EXISTS core_report CASCADE;",
-                ),
-                migrations.RunSQL(
-                    sql="""
-                    CREATE TABLE IF NOT EXISTS core_report_artifacts (
-                        id BIGSERIAL PRIMARY KEY,
-                        report_id BIGINT NOT NULL REFERENCES core_report(id) DEFERRABLE INITIALLY DEFERRED,
-                        artifact_id BIGINT NOT NULL REFERENCES core_artifact(id) DEFERRABLE INITIALLY DEFERRED,
-                        UNIQUE (report_id, artifact_id)
-                    );
-                    CREATE INDEX IF NOT EXISTS core_report_artifacts_report_id_idx
-                        ON core_report_artifacts (report_id);
-                    CREATE INDEX IF NOT EXISTS core_report_artifacts_artifact_id_idx
-                        ON core_report_artifacts (artifact_id);
-                    """,
-                    reverse_sql="DROP TABLE IF EXISTS core_report_artifacts;",
-                ),
-            ],
-            state_operations=[
-                migrations.CreateModel(
-                    name="Report",
-                    fields=[
-                        (
-                            "id",
-                            models.BigAutoField(
-                                auto_created=True,
-                                primary_key=True,
-                                serialize=False,
-                                verbose_name="ID",
-                            ),
-                        ),
-                        (
-                            "report_type",
-                            models.CharField(
-                                choices=[
-                                    ("GENEL", "Genel"),
-                                    ("KAZI", "Kazı"),
-                                    ("LAB", "Laboratuvar"),
-                                    ("KONSERVASYON", "Konservasyon"),
-                                    ("DIGER", "Diğer"),
-                                ],
-                                max_length=30,
-                                verbose_name="Rapor Tipi",
-                            ),
-                        ),
-                        (
-                            "prepared_by",
-                            models.CharField(
-                                max_length=120, verbose_name="Raporu Hazırlayan"
-                            ),
-                        ),
-                        (
-                            "finding_place",
-                            models.CharField(
-                                max_length=120, verbose_name="Buluntu Yeri"
-                            ),
-                        ),
-                        (
-                            "writing_date",
-                            models.DateField(verbose_name="Yazım Tarihi"),
-                        ),
-                        (
-                            "study_year",
-                            models.PositiveIntegerField(verbose_name="Çalışma Yılı"),
-                        ),
-                        (
-                            "title",
-                            models.CharField(
-                                max_length=255, verbose_name="Rapor Başlığı"
-                            ),
-                        ),
-                        (
-                            "description",
-                            models.TextField(
-                                blank=True, default="", verbose_name="Rapor Açıklama"
-                            ),
-                        ),
-                        (
-                            "images",
-                            models.JSONField(
-                                blank=True, default=list, verbose_name="Fotoğraflar"
-                            ),
-                        ),
-                        (
-                            "created_at",
-                            models.DateTimeField(default=django.utils.timezone.now),
-                        ),
-                        (
-                            "updated_at",
-                            models.DateTimeField(default=django.utils.timezone.now),
-                        ),
-                    ],
-                    options={
-                        "ordering": ["-created_at"],
-                    },
-                ),
-                migrations.AddField(
-                    model_name="report",
-                    name="artifacts",
-                    field=models.ManyToManyField(
-                        blank=True,
-                        related_name="reports",
-                        to="core.artifact",
-                        verbose_name="Buluntular",
+        migrations.CreateModel(
+            name="Report",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
                     ),
                 ),
+                (
+                    "report_type",
+                    models.CharField(
+                        choices=[
+                            ("GENEL", "Genel"),
+                            ("KAZI", "Kazı"),
+                            ("LAB", "Laboratuvar"),
+                            ("KONSERVASYON", "Konservasyon"),
+                            ("DIGER", "Diğer"),
+                        ],
+                        max_length=30,
+                        verbose_name="Rapor Tipi",
+                    ),
+                ),
+                (
+                    "prepared_by",
+                    models.CharField(max_length=120, verbose_name="Raporu Hazırlayan"),
+                ),
+                (
+                    "finding_place",
+                    models.CharField(max_length=120, verbose_name="Buluntu Yeri"),
+                ),
+                ("writing_date", models.DateField(verbose_name="Yazım Tarihi")),
+                (
+                    "study_year",
+                    models.PositiveIntegerField(verbose_name="Çalışma Yılı"),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=255, verbose_name="Rapor Başlığı"),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, default="", verbose_name="Rapor Açıklama"
+                    ),
+                ),
+                (
+                    "images",
+                    models.JSONField(
+                        blank=True, default=list, verbose_name="Fotoğraflar"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                ("updated_at", models.DateTimeField(default=django.utils.timezone.now)),
             ],
+            options={
+                "ordering": ["-created_at"],
+            },
         ),
         migrations.RenameIndex(
             model_name="artifact",
@@ -167,6 +103,16 @@ class Migration(migrations.Migration):
                 ],
                 default="GENEL",
                 max_length=20,
+            ),
+        ),
+        migrations.AddField(
+            model_name="report",
+            name="artifacts",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="reports",
+                to="core.artifact",
+                verbose_name="Buluntular",
             ),
         ),
     ]

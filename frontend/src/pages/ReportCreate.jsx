@@ -96,10 +96,8 @@ export default function ReportCreate() {
   const navigate = useNavigate();
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
-  const formId = "report-create-form";
 
   const [mainCodes, setMainCodes] = useState([]);
-  const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [form, setForm] = useState({
     report_type: "",
@@ -124,10 +122,10 @@ export default function ReportCreate() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
 
-  const findingPlaceSuggestions = useMemo(() => {
+  const findingPlaceOptions = useMemo(() => {
     const set = new Set();
     mainCodes.forEach((item) => {
-      if (item.finding_place_label) set.add(item.finding_place_label);
+      if (item.finding_place) set.add(item.finding_place);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
   }, [mainCodes]);
@@ -140,12 +138,6 @@ export default function ReportCreate() {
   useEffect(() => {
     apiGet("/api/main-codes/?page_size=500")
       .then((data) => setMainCodes((data.results || data) ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
-  }, []);
-
-  useEffect(() => {
-    apiGet("/api/lookups/?keys=PRODUCTION_SITE")
-      .then((data) => setFindingPlaceOptions(data?.PRODUCTION_SITE ?? []))
       .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
 
@@ -247,9 +239,6 @@ export default function ReportCreate() {
           <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}>
             Listeye Git
           </Button>
-          <Button type="submit" form={formId}>
-            Kaydet
-          </Button>
         </div>
       </div>
 
@@ -261,7 +250,7 @@ export default function ReportCreate() {
           <CardTitle>Rapor Bilgileri</CardTitle>
         </CardHeader>
         <CardBody>
-          <form id={formId} onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
                 <label className="text-sm font-semibold text-slate-700">Rapor Tipi</label>
@@ -291,18 +280,18 @@ export default function ReportCreate() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
                 <div className="mt-1.5">
-                  <Select
-                    required
+                  <Input
+                    list="finding-places"
                     value={form.finding_place}
                     onChange={(e) => setForm((prev) => ({ ...prev, finding_place: e.target.value }))}
-                  >
-                    <option value="">Seçiniz...</option>
-                    {findingPlaceOptions.map((item) => (
-                      <option key={String(item.id)} value={item.label}>
-                        {item.label}
-                      </option>
+                    placeholder="Buluntu yeri seçin veya yazın"
+                    required
+                  />
+                  <datalist id="finding-places">
+                    {findingPlaceOptions.map((place) => (
+                      <option key={place} value={place} />
                     ))}
-                  </Select>
+                  </datalist>
                 </div>
               </div>
 
@@ -423,7 +412,7 @@ export default function ReportCreate() {
                   placeholder="Buluntu yeri girin"
                 />
                 <datalist id="finding-places-search">
-                  {findingPlaceSuggestions.map((place) => (
+                  {findingPlaceOptions.map((place) => (
                     <option key={place} value={place} />
                   ))}
                 </datalist>

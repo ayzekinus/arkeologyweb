@@ -9,8 +9,8 @@ def forwards_findings(apps, schema_editor):
     MainCode = apps.get_model("core", "MainCode")
 
     lookup, _ = LookupList.objects.get_or_create(
-        key="PRODUCTION_SITE",
-        defaults={"title": "Üretim Yeri", "description": "MainCode Buluntu Yeri"},
+        key="FINDING_PLACE",
+        defaults={"title": "Buluntu Yeri", "description": "MainCode Buluntu Yeri"},
     )
 
     items_by_value = {
