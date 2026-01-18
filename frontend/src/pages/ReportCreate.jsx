@@ -33,7 +33,6 @@ export default function ReportCreate() {
   const [artifactQuery, setArtifactQuery] = useState("");
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [reportTypes, setReportTypes] = useState([]);
-  const [reportTypes, setReportTypes] = useState([]);
   const [form, setForm] = useState({
     report_type: "",
     report_author: getCurrentUserName(),
@@ -49,10 +48,6 @@ export default function ReportCreate() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    apiGet("/api/main-codes/?page_size=500")
-      .then((mainCodePayload) => {
-        setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
-
     Promise.all([
       apiGet("/api/main-codes/?page_size=500"),
       apiGet("/api/artifacts/?page_size=500"),
@@ -60,7 +55,6 @@ export default function ReportCreate() {
       .then(([mainCodePayload, artifactPayload]) => {
         setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
         setArtifacts((artifactPayload.results || artifactPayload) ?? []);
-
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
 
@@ -177,18 +171,7 @@ export default function ReportCreate() {
                 {!reportTypes.length ? (
                   <p className="mt-1 text-xs text-slate-500">Rapor tipleri admin panelinden tanımlanabilir.</p>
                 ) : null}
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Rapor tipleri admin panelinden tanımlanabilir.
-                  </p>
-                ) : null}
-
-                  {!reportTypes.length ? (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Rapor tipleri admin panelinden tanımlanabilir.
-                    </p>
-                  ) : null}
-                </div>
+              </div>
 
               </div>
 
@@ -290,7 +273,7 @@ export default function ReportCreate() {
                 <p className="mt-1 text-xs text-slate-500">Bu rapora dahil edilecek buluntuları seçin.</p>
 
               </div>
-            </div>
+            
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" type="submit">
