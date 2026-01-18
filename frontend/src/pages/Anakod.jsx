@@ -92,6 +92,8 @@ export default function Anakod() {
   function openArtifactDetail(artifact) {
     setSelectedArtifact(artifact);
     setArtifactDetailOpen(true);
+    setMcDetailOpen(false);
+    setSelectedMainCode(null);
   }
 
   return (
