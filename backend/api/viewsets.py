@@ -11,8 +11,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from core.models import Artifact, MainCode
-from .serializers import ArtifactSerializer, MainCodeSerializer
+from core.models import Artifact, MainCode, Report
+from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer
 
 
 def _flatten(prefix: str, obj: Any, out: Dict[str, str]) -> None:
@@ -610,3 +610,43 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             {"detail": "format desteklenmiyor. csv | xlsx | pdf"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class ReportViewSet(viewsets.ModelViewSet):
+    queryset = Report.objects.prefetch_related("artifacts").all().order_by("-created_at")
+    serializer_class = ReportSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qp = self.request.query_params
+
+        report_type = qp.get("report_type")
+        if report_type:
+            qs = qs.filter(report_type=report_type)
+
+        finding_place = qp.get("finding_place")
+        if finding_place:
+            qs = qs.filter(finding_place__icontains=finding_place)
+
+        study_year = qp.get("study_year")
+        if study_year:
+            try:
+                qs = qs.filter(study_year=int(study_year))
+            except ValueError:
+                pass
+
+        q = qp.get("q")
+        if q:
+            qs = qs.filter(
+                Q(title__icontains=q)
+                | Q(prepared_by__icontains=q)
+                | Q(finding_place__icontains=q)
+                | Q(description__icontains=q)
+            )
+
+        ordering = qp.get("ordering")
+        allowed = {"created_at", "-created_at", "writing_date", "-writing_date"}
+        if ordering in allowed:
+            qs = qs.order_by(ordering)
+
+        return qs

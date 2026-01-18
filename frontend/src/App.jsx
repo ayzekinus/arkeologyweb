@@ -7,6 +7,8 @@ import AnakodCreate from "./pages/AnakodCreate.jsx";
 import AnakodList from "./pages/AnakodList.jsx";
 import BuluntuCreate from "./pages/BuluntuCreate.jsx";
 import BuluntuList from "./pages/BuluntuList.jsx";
+import ReportCreate from "./pages/ReportCreate.jsx";
+import ReportList from "./pages/ReportList.jsx";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +33,15 @@ const router = createBrowserRouter([
           { path: "olustur", element: <BuluntuCreate /> },
           { path: "listele", element: <BuluntuList /> },
           { path: "envanterlik", element: <BuluntuList inventoryOnly /> },
+        ],
+      },
+
+      {
+        path: "rapor",
+        children: [
+          { index: true, element: <Navigate to="olustur" replace /> },
+          { path: "olustur", element: <ReportCreate /> },
+          { path: "listele", element: <ReportList /> },
         ],
       },
     ],
