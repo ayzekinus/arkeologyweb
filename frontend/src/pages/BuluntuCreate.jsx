@@ -128,13 +128,6 @@ export default function BuluntuCreate() {
   }, [editId]);
 
   useEffect(() => {
-    if (editId || form.form_type) return;
-    if (forms.length) {
-      setForm((prev) => ({ ...prev, form_type: prev.form_type || forms[0].key }));
-    }
-  }, [forms, editId, form.form_type]);
-
-  useEffect(() => {
     const ft = form.form_type;
     if (!ft) {
       setFormSchema(null);
@@ -430,7 +423,7 @@ export default function BuluntuCreate() {
                     value={form.form_type}
                     onChange={(e) => setForm((p) => ({ ...p, form_type: e.target.value, details: {} }))}
                   >
-                    <option value="">Seçiniz...</option>
+                    <option value="">Form alanına seçiniz...</option>
                     {forms.map((f) => (
                       <option key={f.key} value={f.key}>
                         {f.title}
