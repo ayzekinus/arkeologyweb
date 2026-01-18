@@ -8,6 +8,12 @@ class MainCodeAdmin(admin.ModelAdmin):
     list_filter = ("layer", "level")
     ordering = ("-created_at",)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "finding_place":
+            lookup = LookupList.objects.filter(key="PRODUCTION_SITE").first()
+            kwargs["queryset"] = LookupItem.objects.filter(lookup=lookup, is_active=True) if lookup else LookupItem.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Artifact)
 class ArtifactAdmin(admin.ModelAdmin):
     list_display = ("full_artifact_no", "main_code", "artifact_no", "artifact_date", "form_type", "production_material", "period", "is_inventory", "is_active")
