@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import MainCode, Artifact, MainCodeSequence
+
+from api.models import LookupList, LookupItem
+from .models import MainCode, Artifact, MainCodeSequence, Report
 
 @admin.register(MainCode)
 class MainCodeAdmin(admin.ModelAdmin):
@@ -7,6 +9,12 @@ class MainCodeAdmin(admin.ModelAdmin):
     search_fields = ("code", "finding_place", "plan_square", "gis")
     list_filter = ("layer", "level")
     ordering = ("-created_at",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "finding_place":
+            lookup = LookupList.objects.filter(key="PRODUCTION_SITE").first()
+            kwargs["queryset"] = LookupItem.objects.filter(lookup=lookup, is_active=True) if lookup else LookupItem.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Artifact)
 class ArtifactAdmin(admin.ModelAdmin):
@@ -17,3 +25,19 @@ class ArtifactAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
 admin.site.register(MainCodeSequence)
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "report_type",
+        "prepared_by",
+        "finding_place",
+        "study_year",
+        "writing_date",
+        "created_at",
+    )
+    search_fields = ("title", "prepared_by", "finding_place")
+    list_filter = ("report_type", "study_year")
+    filter_horizontal = ("artifacts",)
+    ordering = ("-created_at",)

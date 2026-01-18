@@ -186,7 +186,7 @@ export default function AnakodList() {
                 {rows.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="border-b border-slate-100 px-2 py-2 font-semibold">{r.code}</td>
-                    <td className="border-b border-slate-100 px-2 py-2">{r.finding_place}</td>
+                    <td className="border-b border-slate-100 px-2 py-2">{r.finding_place_label || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{r.plan_square || ""}</td>
                     <td className="border-b border-slate-100 px-2 py-2">{(r.created_at || "").slice(0, 10)}</td>
                     <td className="border-b border-slate-100 px-2 py-2">
