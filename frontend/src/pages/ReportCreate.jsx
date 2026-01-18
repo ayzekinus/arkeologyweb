@@ -28,13 +28,12 @@ function toUniqueFindingPlaces(mainCodes) {
 
 export default function ReportCreate() {
   const navigate = useNavigate();
-  const artifactPageSize = 50;
   const [mainCodes, setMainCodes] = useState([]);
   const [artifacts, setArtifacts] = useState([]);
   const [artifactQuery, setArtifactQuery] = useState("");
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [reportTypes, setReportTypes] = useState([]);
-
+  const [reportTypes, setReportTypes] = useState([]);
   const [form, setForm] = useState({
     report_type: "",
     report_author: getCurrentUserName(),
@@ -53,6 +52,15 @@ export default function ReportCreate() {
     apiGet("/api/main-codes/?page_size=500")
       .then((mainCodePayload) => {
         setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
+
+    Promise.all([
+      apiGet("/api/main-codes/?page_size=500"),
+      apiGet("/api/artifacts/?page_size=500"),
+    ])
+      .then(([mainCodePayload, artifactPayload]) => {
+        setMainCodes((mainCodePayload.results || mainCodePayload) ?? []);
+        setArtifacts((artifactPayload.results || artifactPayload) ?? []);
+
       })
       .catch((e) => setErr(e.message || "Veriler yüklenemedi."));
 
@@ -65,7 +73,7 @@ export default function ReportCreate() {
     const handler = setTimeout(async () => {
       setArtifactLoading(true);
       try {
-        const params = new URLSearchParams({ page_size: String(artifactPageSize) });
+        const params = new URLSearchParams({ page_size: "50" });
         if (artifactQuery.trim()) {
           params.set("q", artifactQuery.trim());
         }
@@ -80,6 +88,7 @@ export default function ReportCreate() {
 
     return () => clearTimeout(handler);
   }, [artifactQuery]);
+
 
   const findingPlaces = useMemo(() => toUniqueFindingPlaces(mainCodes), [mainCodes]);
 
@@ -98,6 +107,7 @@ export default function ReportCreate() {
   }
 
   async function onSubmit(event) {
+
     event.preventDefault();
     setMsg("");
     setErr("");
@@ -134,6 +144,7 @@ export default function ReportCreate() {
         </div>
 
         <div className="flex gap-2">
+
           <Button variant="secondary" type="button" onClick={() => navigate("/rapor/listele")}>
             Listeye Git
           </Button>
@@ -166,6 +177,19 @@ export default function ReportCreate() {
                 {!reportTypes.length ? (
                   <p className="mt-1 text-xs text-slate-500">Rapor tipleri admin panelinden tanımlanabilir.</p>
                 ) : null}
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Rapor tipleri admin panelinden tanımlanabilir.
+                  </p>
+                ) : null}
+
+                  {!reportTypes.length ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Rapor tipleri admin panelinden tanımlanabilir.
+                    </p>
+                  ) : null}
+                </div>
+
               </div>
 
               <div>
@@ -249,6 +273,7 @@ export default function ReportCreate() {
                     placeholder="Buluntu no, anakod veya notlara göre ara..."
                     className="mb-2"
                   />
+
                   <Select multiple value={form.artifacts} onChange={onChangeArtifacts}>
                     {artifacts.map((artifact) => (
                       <option key={artifact.id} value={String(artifact.id)}>
@@ -260,6 +285,10 @@ export default function ReportCreate() {
                 <p className="mt-1 text-xs text-slate-500">
                   {artifactLoading ? "Buluntular yükleniyor..." : "Bu rapora dahil edilecek buluntuları seçin."}
                 </p>
+
+
+                <p className="mt-1 text-xs text-slate-500">Bu rapora dahil edilecek buluntuları seçin.</p>
+
               </div>
             </div>
 
