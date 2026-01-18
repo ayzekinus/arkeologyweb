@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiDelete } from "../api.js";
 import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
+import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -30,7 +31,7 @@ function download(url) {
   a.remove();
 }
 
-export default function BuluntuList() {
+export default function BuluntuList({ inventoryOnly = false }) {
   const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
@@ -57,6 +58,7 @@ export default function BuluntuList() {
     form_type: "",
     date_from: "",
     date_to: "",
+    is_inventory: inventoryOnly ? "1" : "",
   });
 
   const [filterDraft, setFilterDraft] = useState({ ...filters });
@@ -82,6 +84,24 @@ export default function BuluntuList() {
   }, []);
 
   useEffect(() => {
+    const nextFilters = {
+      q: "",
+      main_code_code: "",
+      finding_place: "",
+      artifact_no: "",
+      production_material: "",
+      period: "",
+      form_type: "",
+      date_from: "",
+      date_to: "",
+      is_inventory: inventoryOnly ? "1" : "",
+    };
+    setFilters(nextFilters);
+    setFilterDraft(nextFilters);
+    setPage(1);
+  }, [inventoryOnly]);
+
+  useEffect(() => {
     load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, ordering, filters]);
@@ -102,6 +122,7 @@ export default function BuluntuList() {
       form_type: "",
       date_from: "",
       date_to: "",
+      is_inventory: inventoryOnly ? "1" : "",
     };
     setFilterDraft(empty);
     setFilters(empty);
@@ -139,11 +160,14 @@ export default function BuluntuList() {
     }
   }
 
+  const pageTitle = inventoryOnly ? "Envanterlik Buluntular" : "Buluntu Listele";
+  const cardTitle = inventoryOnly ? "Envanterlik Buluntu Listesi" : "Buluntu Listesi";
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Buluntu Listele</h1>
+          <h1 className="text-2xl font-extrabold">{pageTitle}</h1>
           <p className="mt-1 text-sm text-slate-600">Server-side filtreleme ve sayfalama.</p>
         </div>
 
@@ -156,7 +180,7 @@ export default function BuluntuList() {
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Buluntu Listesi</CardTitle>
+          <CardTitle>{cardTitle}</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
             <Select value={ordering} onChange={(e) => setOrdering(e.target.value)}>
@@ -347,32 +371,64 @@ export default function BuluntuList() {
 
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => openDetail(r)}>
-                          Görüntüle
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => openDetail(r)}
+                          aria-label="Görüntüle"
+                          title="Görüntüle"
+                        >
+                          <IconView />
                         </Button>
                         <Button
                           variant="secondary"
                           className="py-1.5"
                           onClick={() => navigate(`/buluntu/olustur?id=${r.id}`)}
+                          aria-label="Düzenle"
+                          title="Düzenle"
                         >
-                          Düzenle
+                          <IconEdit />
                         </Button>
-                        <Button variant="danger" className="py-1.5" onClick={() => onDelete(r.id)}>
-                          Sil
+                        <Button
+                          variant="danger"
+                          className="py-1.5"
+                          onClick={() => onDelete(r.id)}
+                          aria-label="Sil"
+                          title="Sil"
+                        >
+                          <IconDelete />
                         </Button>
                       </div>
                     </td>
 
                     <td className="border-b border-slate-100 px-2 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}>
-                          PDF
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "pdf", r.full_artifact_no)}
+                          aria-label="PDF"
+                          title="PDF"
+                        >
+                          <IconPdf />
                         </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}>
-                          EXCEL
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "xlsx", r.full_artifact_no)}
+                          aria-label="XLS"
+                          title="XLS"
+                        >
+                          <IconXls />
                         </Button>
-                        <Button variant="secondary" className="py-1.5" onClick={() => onExport(r.id, "csv", r.full_artifact_no)}>
-                          CSV
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => onExport(r.id, "csv", r.full_artifact_no)}
+                          aria-label="CSV"
+                          title="CSV"
+                        >
+                          <IconCsv />
                         </Button>
                       </div>
                     </td>
