@@ -57,7 +57,7 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
         form = self.get_object()
 
         form_fields = (
-            ArtifactFormField.objects.filter(form=form, is_active=True, field__is_active=True)
+            ArtifactFormField.objects.filter(form=form, field__is_active=True)
             .select_related("field")
             .order_by("order", "id")
         )
