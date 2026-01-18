@@ -83,6 +83,24 @@ export default function BuluntuList({ inventoryOnly = false }) {
   }, []);
 
   useEffect(() => {
+    const nextFilters = {
+      q: "",
+      main_code_code: "",
+      finding_place: "",
+      artifact_no: "",
+      production_material: "",
+      period: "",
+      form_type: "",
+      date_from: "",
+      date_to: "",
+      is_inventory: inventoryOnly ? "1" : "",
+    };
+    setFilters(nextFilters);
+    setFilterDraft(nextFilters);
+    setPage(1);
+  }, [inventoryOnly]);
+
+  useEffect(() => {
     load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, ordering, filters]);
