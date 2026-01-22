@@ -40,3 +40,9 @@ class ReportAdmin(admin.ModelAdmin):
     list_filter = ("report_type", "study_year")
     filter_horizontal = ("artifacts",)
     ordering = ("-created_at",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "finding_place":
+            lookup = LookupList.objects.filter(key="FINDING_PLACE").first()
+            kwargs["queryset"] = LookupItem.objects.filter(lookup=lookup, is_active=True) if lookup else LookupItem.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
