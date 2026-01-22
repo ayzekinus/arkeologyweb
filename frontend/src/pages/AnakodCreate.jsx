@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../api.js";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { apiGet, apiPatch, apiPost } from "../api.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -8,9 +9,14 @@ import Select from "../ui/Select.jsx";
 import Textarea from "../ui/Textarea.jsx";
 
 export default function AnakodCreate() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id");
+
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
+  const [editingCode, setEditingCode] = useState("");
 
   const [form, setForm] = useState({
     finding_place: "",
@@ -28,6 +34,27 @@ export default function AnakodCreate() {
       .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
 
+  useEffect(() => {
+    if (!editId) {
+      setEditingCode("");
+      return;
+    }
+    apiGet(`/api/main-codes/${editId}/`)
+      .then((data) => {
+        setEditingCode(data.code || "");
+        setForm({
+          finding_place: data.finding_place ? String(data.finding_place) : "",
+          plan_square: data.plan_square || "",
+          description: data.description || "",
+          layer: data.layer || "",
+          level: data.level || "",
+          grave_no: data.grave_no || "",
+          gis: data.gis || "",
+        });
+      })
+      .catch((e) => setErr(e.message || "Anakod yüklenemedi."));
+  }, [editId]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setMsg("");
@@ -39,18 +66,23 @@ export default function AnakodCreate() {
     }
 
     try {
-      const saved = await apiPost("/api/main-codes/", form);
-      setMsg(`Anakod ${saved.code} başarı ile oluşturuldu.`);
-      // Clear all but keep UX simple
-      setForm({
-        finding_place: "",
-        plan_square: "",
-        description: "",
-        layer: "",
-        level: "",
-        grave_no: "",
-        gis: "",
-      });
+      if (editId) {
+        await apiPatch(`/api/main-codes/${editId}/`, form);
+        setMsg("Anakod başarı ile güncellendi.");
+      } else {
+        const saved = await apiPost("/api/main-codes/", form);
+        setMsg(`Anakod ${saved.code} başarı ile oluşturuldu.`);
+        // Clear all but keep UX simple
+        setForm({
+          finding_place: "",
+          plan_square: "",
+          description: "",
+          layer: "",
+          level: "",
+          grave_no: "",
+          gis: "",
+        });
+      }
     } catch (e2) {
       setErr(e2.message || "İşlem başarısız.");
     }
@@ -59,8 +91,10 @@ export default function AnakodCreate() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-extrabold">Anakod Oluştur</h1>
-        <p className="mt-1 text-sm text-slate-600">Kod sistem tarafından otomatik atanır (AAA → ZZZ).</p>
+        <h1 className="text-2xl font-extrabold">Anakod {editId ? "Güncelle" : "Oluştur"}</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          {editId ? "Anakod bilgilerini güncelleyin." : "Kod sistem tarafından otomatik atanır (AAA → ZZZ)."}
+        </p>
       </div>
 
       <Card>
@@ -70,6 +104,14 @@ export default function AnakodCreate() {
         <CardBody>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {editId ? (
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Anakod</label>
+                  <div className="mt-1.5">
+                    <Input value={editingCode} readOnly />
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
                 <div className="mt-1.5">
@@ -141,8 +183,13 @@ export default function AnakodCreate() {
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" type="submit">
-                Kaydet ve Kod Al
+                {editId ? "Anakod Güncelle" : "Kaydet ve Kod Al"}
               </Button>
+              {editId ? (
+                <Button variant="secondary" type="button" onClick={() => navigate("/anakod/listele")}>
+                  Listeye Dön
+                </Button>
+              ) : null}
 
               {msg ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">

@@ -207,6 +207,24 @@ export default function ArtifactDetailModal({
       formKey
     );
 
+    const mainCodeFindingPlace = coalesce(
+      detail.main_code_finding_place,
+      detail.main_code?.finding_place_label,
+      detail.main_code?.finding_place
+    );
+    const mainCodePlanSquare = coalesce(
+      detail.main_code_plan_square,
+      detail.main_code?.plan_square
+    );
+    const mainCodeDescription = coalesce(
+      detail.main_code_description,
+      detail.main_code?.description
+    );
+    const mainCodeLayer = coalesce(detail.main_code_layer, detail.main_code?.layer);
+    const mainCodeLevel = coalesce(detail.main_code_level, detail.main_code?.level);
+    const mainCodeGraveNo = coalesce(detail.main_code_grave_no, detail.main_code?.grave_no);
+    const mainCodeGis = coalesce(detail.main_code_gis, detail.main_code?.gis);
+
     const pieceDate = coalesce(detail.piece_date, detail.eser_tarihi);
 
     const isInventory =
@@ -214,6 +232,41 @@ export default function ArtifactDetailModal({
 
     return [
       { label: "Anakod", value: displayMainCode, key: "main_code" },
+      {
+        label: "Buluntu Yeri (Anakod)",
+        value: hasValue(mainCodeFindingPlace) ? String(mainCodeFindingPlace) : "-",
+        key: "main_code_finding_place",
+      },
+      {
+        label: "PlanKare (Anakod)",
+        value: hasValue(mainCodePlanSquare) ? String(mainCodePlanSquare) : "-",
+        key: "main_code_plan_square",
+      },
+      {
+        label: "Açıklama (Anakod)",
+        value: hasValue(mainCodeDescription) ? String(mainCodeDescription) : "-",
+        key: "main_code_description",
+      },
+      {
+        label: "Tabaka (Anakod)",
+        value: hasValue(mainCodeLayer) ? String(mainCodeLayer) : "-",
+        key: "main_code_layer",
+      },
+      {
+        label: "Seviye (Anakod)",
+        value: hasValue(mainCodeLevel) ? String(mainCodeLevel) : "-",
+        key: "main_code_level",
+      },
+      {
+        label: "Mezar No (Anakod)",
+        value: hasValue(mainCodeGraveNo) ? String(mainCodeGraveNo) : "-",
+        key: "main_code_grave_no",
+      },
+      {
+        label: "GIS (Anakod)",
+        value: hasValue(mainCodeGis) ? String(mainCodeGis) : "-",
+        key: "main_code_gis",
+      },
       {
         label: "Buluntu No",
         value: hasValue(artifactNo) ? String(artifactNo) : "-",
