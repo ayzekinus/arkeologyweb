@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from core.models import MainCode, Artifact, Report
+from .models import LookupItem
 
 
 class MainCodeSerializer(serializers.ModelSerializer):
@@ -69,6 +70,10 @@ class ArtifactSerializer(serializers.ModelSerializer):
 
 class ReportSerializer(serializers.ModelSerializer):
     artifact_count = serializers.IntegerField(source="artifacts.count", read_only=True)
+    finding_place_label = serializers.CharField(source="finding_place.label", read_only=True)
+    finding_place = serializers.PrimaryKeyRelatedField(
+        queryset=LookupItem.objects.filter(lookup__key="FINDING_PLACE", is_active=True),
+    )
     artifacts = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Artifact.objects.all(),
@@ -82,6 +87,7 @@ class ReportSerializer(serializers.ModelSerializer):
             "report_type",
             "prepared_by",
             "finding_place",
+            "finding_place_label",
             "writing_date",
             "study_year",
             "title",
