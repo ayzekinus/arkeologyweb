@@ -69,6 +69,7 @@ class ArtifactSerializer(serializers.ModelSerializer):
 
 class ReportSerializer(serializers.ModelSerializer):
     artifact_count = serializers.IntegerField(source="artifacts.count", read_only=True)
+    finding_place_label = serializers.CharField(source="finding_place.label", read_only=True)
     artifacts = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Artifact.objects.all(),
@@ -82,6 +83,7 @@ class ReportSerializer(serializers.ModelSerializer):
             "report_type",
             "prepared_by",
             "finding_place",
+            "finding_place_label",
             "writing_date",
             "study_year",
             "title",
