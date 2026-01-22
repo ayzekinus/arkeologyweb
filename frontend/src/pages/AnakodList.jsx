@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiGet, apiDelete } from "../api.js";
 import MainCodeDetailModal from "../components/MainCodeDetailModal.jsx";
 import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
@@ -8,7 +9,7 @@ import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import Pagination from "../ui/Pagination.jsx";
-import { IconDelete, IconView } from "../ui/Icons.jsx";
+import { IconDelete, IconEdit, IconView } from "../ui/Icons.jsx";
 
 function buildQuery(params) {
   const qs = new URLSearchParams();
@@ -22,6 +23,7 @@ function buildQuery(params) {
 }
 
 export default function AnakodList() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
 
@@ -81,6 +83,10 @@ export default function AnakodList() {
   function openDetail(mc) {
     setSelected(mc);
     setDetailOpen(true);
+  }
+
+  function openEdit(mc) {
+    navigate(`/anakod/olustur?id=${encodeURIComponent(mc.id)}`);
   }
 
   function openArtifact(a) {
@@ -199,6 +205,15 @@ export default function AnakodList() {
                           title="Görüntüle"
                         >
                           <IconView />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="py-1.5"
+                          onClick={() => openEdit(r)}
+                          aria-label="Düzenle"
+                          title="Düzenle"
+                        >
+                          <IconEdit />
                         </Button>
                         <Button
                           variant="danger"

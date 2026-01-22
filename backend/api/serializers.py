@@ -19,6 +19,12 @@ class MainCodeSerializer(serializers.ModelSerializer):
 class ArtifactSerializer(serializers.ModelSerializer):
     main_code_code = serializers.CharField(source="main_code.code", read_only=True)
     main_code_finding_place = serializers.CharField(source="main_code.finding_place.label", read_only=True)
+    main_code_plan_square = serializers.CharField(source="main_code.plan_square", read_only=True)
+    main_code_description = serializers.CharField(source="main_code.description", read_only=True)
+    main_code_layer = serializers.CharField(source="main_code.layer", read_only=True)
+    main_code_level = serializers.CharField(source="main_code.level", read_only=True)
+    main_code_grave_no = serializers.CharField(source="main_code.grave_no", read_only=True)
+    main_code_gis = serializers.CharField(source="main_code.gis", read_only=True)
     full_artifact_no = serializers.CharField(read_only=True)
 
     class Meta:
@@ -28,6 +34,12 @@ class ArtifactSerializer(serializers.ModelSerializer):
             "main_code",
             "main_code_code",
             "main_code_finding_place",
+            "main_code_plan_square",
+            "main_code_description",
+            "main_code_layer",
+            "main_code_level",
+            "main_code_grave_no",
+            "main_code_gis",
             "artifact_no",
             "full_artifact_no",
             "artifact_date",
