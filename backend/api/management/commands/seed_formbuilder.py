@@ -15,6 +15,7 @@ try:
         MaterialFormMap,
         MaterialGroup,
     )
+    from core.models import Artifact, MainCode
 except Exception:  # pragma: no cover
     # Fallback if project split modules later
     from api.models_formbuilder import (  # type: ignore
@@ -27,6 +28,7 @@ except Exception:  # pragma: no cover
         MaterialFormMap,
         MaterialGroup,
     )
+    from core.models import Artifact, MainCode  # type: ignore
 
 
 DENSTY_CHOICES = [
@@ -60,6 +62,12 @@ TEXTURE = [
 ]
 
 LOOKUPS = {
+    "FINDING_PLACE": [
+        {"value": "Alan A", "label": "Alan A", "order": 10},
+        {"value": "Alan B", "label": "Alan B", "order": 20},
+        {"value": "Alan C", "label": "Alan C", "order": 30},
+        {"value": "Müze Deposu", "label": "Müze Deposu", "order": 40},
+    ],
     "FORM_OBJECT": [
         {"value": "Seramik Parça", "label": "Seramik Parça", "order": 10},
         {"value": "Metal Parça", "label": "Metal Parça", "order": 20},
@@ -126,6 +134,7 @@ LOOKUPS = {
 
 
 FORMS = [
+    {"key": "GENEL", "title": "Genel", "order": 0},
     {"key": "SIKKE", "title": "Sikke", "order": 10},
     {"key": "SERAMIK", "title": "Seramik", "order": 20},
     {"key": "TERRACOTTA", "title": "Terracotta", "order": 30},
@@ -208,6 +217,7 @@ FIELDS = [
 
 
 FORM_FIELD_MAP = {
+    "GENEL": [],
     "SIKKE": [
         ("coin.condition", False),
         ("coin.unit", False),
@@ -421,6 +431,38 @@ class Command(BaseCommand):
                         "label": item.get("label", item["value"]),
                         "order": item.get("order", 99),
                         "is_active": True,
+                    },
+                )
+
+        finding_place_lookup = LookupList.objects.filter(key="FINDING_PLACE").first()
+        finding_places = (
+            list(LookupItem.objects.filter(lookup=finding_place_lookup, is_active=True).order_by("order", "label"))
+            if finding_place_lookup
+            else []
+        )
+        if finding_places:
+            sample_codes = ["AAA", "AAB", "AAC"]
+            for code, finding_place in zip(sample_codes, finding_places):
+                MainCode.objects.update_or_create(
+                    code=code,
+                    defaults={
+                        "finding_place": finding_place,
+                        "plan_square": "A10",
+                        "description": "Örnek Anakod",
+                        "layer": "1",
+                        "level": "1",
+                        "grave_no": "1",
+                        "gis": "N/A",
+                    },
+                )
+
+            for main_code in MainCode.objects.all()[:3]:
+                Artifact.objects.update_or_create(
+                    main_code=main_code,
+                    artifact_no=1,
+                    defaults={
+                        "artifact_date": main_code.created_at.date(),
+                        "form_type": "GENEL",
                     },
                 )
 
