@@ -171,7 +171,12 @@ class Report(models.Model):
 
     report_type = models.CharField(max_length=30, choices=REPORT_TYPES, verbose_name="Rapor Tipi")
     prepared_by = models.CharField(max_length=120, verbose_name="Raporu Hazırlayan")
-    finding_place = models.CharField(max_length=120, verbose_name="Buluntu Yeri")
+    finding_place = models.ForeignKey(
+        "api.LookupItem",
+        on_delete=models.PROTECT,
+        related_name="reports",
+        verbose_name="Buluntu Yeri",
+    )
     writing_date = models.DateField(verbose_name="Yazım Tarihi")
     study_year = models.PositiveIntegerField(verbose_name="Çalışma Yılı")
     title = models.CharField(max_length=255, verbose_name="Rapor Başlığı")

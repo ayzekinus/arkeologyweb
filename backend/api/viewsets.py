@@ -626,7 +626,10 @@ class ReportViewSet(viewsets.ModelViewSet):
 
         finding_place = qp.get("finding_place")
         if finding_place:
-            qs = qs.filter(finding_place__icontains=finding_place)
+            if finding_place.isdigit():
+                qs = qs.filter(finding_place_id=int(finding_place))
+            else:
+                qs = qs.filter(finding_place__label__icontains=finding_place)
 
         study_year = qp.get("study_year")
         if study_year:
@@ -640,7 +643,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             qs = qs.filter(
                 Q(title__icontains=q)
                 | Q(prepared_by__icontains=q)
-                | Q(finding_place__icontains=q)
+                | Q(finding_place__label__icontains=q)
                 | Q(description__icontains=q)
             )
 
