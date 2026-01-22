@@ -35,7 +35,7 @@ class ReportAdmin(admin.ModelAdmin):
         "writing_date",
         "created_at",
     )
-    search_fields = ("title", "prepared_by", "finding_place")
+    search_fields = ("title", "prepared_by", "finding_place__label")
     list_filter = ("report_type", "study_year")
     filter_horizontal = ("artifacts",)
     ordering = ("-created_at",)
