@@ -126,9 +126,11 @@ export default function ReportCreate() {
   const findingPlaceSearchOptions = useMemo(() => {
     const set = new Set();
     mainCodes.forEach((item) => {
-      if (item.finding_place_label) set.add(item.finding_place_label);
+      if (item?.finding_place_label) {
+        set.add(String(item.finding_place_label));
+      }
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
+    return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "tr"));
   }, [mainCodes]);
 
   useEffect(() => {
