@@ -18,4 +18,7 @@
 - docker compose exec backend python manage.py seed_formbuilder
 
 ## Docker Rebuild Steps
+- git pull
 - docker compose up -d --build
+- docker compose exec backend python manage.py migrate
+- docker compose exec backend python manage.py seed_formbuilder
