@@ -1,16 +1,17 @@
 from django.contrib import admin
+from api.models import LookupItem, LookupList
 from .models import MainCode, Artifact, MainCodeSequence, Report
 
 @admin.register(MainCode)
 class MainCodeAdmin(admin.ModelAdmin):
     list_display = ("code", "finding_place", "plan_square", "layer", "level", "grave_no", "created_at")
-    search_fields = ("code", "finding_place", "plan_square", "gis")
+    search_fields = ("code", "finding_place__label", "plan_square", "gis")
     list_filter = ("layer", "level")
     ordering = ("-created_at",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "finding_place":
-            lookup = LookupList.objects.filter(key="PRODUCTION_SITE").first()
+            lookup = LookupList.objects.filter(key="FINDING_PLACE").first()
             kwargs["queryset"] = LookupItem.objects.filter(lookup=lookup, is_active=True) if lookup else LookupItem.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
@@ -35,7 +36,13 @@ class ReportAdmin(admin.ModelAdmin):
         "writing_date",
         "created_at",
     )
-    search_fields = ("title", "prepared_by", "finding_place")
+    search_fields = ("title", "prepared_by", "finding_place__label")
     list_filter = ("report_type", "study_year")
     filter_horizontal = ("artifacts",)
     ordering = ("-created_at",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "finding_place":
+            lookup = LookupList.objects.filter(key="FINDING_PLACE").first()
+            kwargs["queryset"] = LookupItem.objects.filter(lookup=lookup, is_active=True) if lookup else LookupItem.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
