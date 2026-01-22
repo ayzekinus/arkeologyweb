@@ -386,9 +386,7 @@ export default function ArtifactDetailModal({
               schema.sections.map((section) => {
                 const visibleFields = (section.fields || [])
                   .filter((f) => !summaryKeySet.has(f.key))
-                  .map((f) => ({ field: f, v: getFieldDisplay(f) }))
-                  // Show only non-empty fields to avoid huge empty forms
-                  .filter(({ v }) => hasValue(v.raw));
+                  .map((f) => ({ field: f, v: getFieldDisplay(f) }));
 
                 if (!visibleFields.length) return null;
 

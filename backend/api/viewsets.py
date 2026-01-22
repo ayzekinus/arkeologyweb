@@ -135,7 +135,7 @@ def _artifact_html(artifact: Artifact) -> str:
         rows = []
         for k, v in d.items():
             if v is None or v == "":
-                continue
+                v = "-"
             rows.append(f"<tr><td class='k'>{esc(k)}</td><td class='v'>{nl2br(v)}</td></tr>")
         if not rows:
             return "<div class='muted'>Veri yok.</div>"
@@ -148,7 +148,7 @@ def _artifact_html(artifact: Artifact) -> str:
         for k in sorted(d.keys(), key=lambda x: str(x)):
             v = d.get(k)
             if v is None or v == "":
-                continue
+                v = "-"
             label = str(k).replace("_", " ").title()
             rows.append(f"<tr><td class='k'>{esc(label)}</td><td class='v'>{nl2br(v)}</td></tr>")
         if not rows:
