@@ -66,6 +66,11 @@ export default function BuluntuCreate() {
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
 
+  const selectedMainCode = useMemo(() => {
+    const id = String(form.main_code || "");
+    return anakod.find((a) => String(a.id) === id) || null;
+  }, [anakod, form.main_code]);
+
   const fullNoPreview = useMemo(() => {
     const mc = anakod.find((a) => String(a.id) === String(form.main_code));
     const code = mc?.code || "";
@@ -399,6 +404,41 @@ export default function BuluntuCreate() {
                     value={form.artifact_date}
                     onChange={(e) => setForm((p) => ({ ...p, artifact_date: e.target.value }))}
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Anakod Numarası</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.code || ""} readOnly placeholder="Anakod seçiniz" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.finding_place_label || ""} readOnly placeholder="Anakod seçiniz" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">PlanKare</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.plan_square || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Seviye</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.level || ""} readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-700">Mezar No</label>
+                <div className="mt-1.5">
+                  <Input value={selectedMainCode?.grave_no || ""} readOnly />
                 </div>
               </div>
 

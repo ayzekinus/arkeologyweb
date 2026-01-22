@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils import timezone
 
 
 try:
@@ -15,7 +16,7 @@ try:
         MaterialFormMap,
         MaterialGroup,
     )
-    from core.models import Artifact, MainCode
+    from core.models import Artifact, MainCode, Report
 except Exception:  # pragma: no cover
     # Fallback if project split modules later
     from api.models_formbuilder import (  # type: ignore
@@ -28,7 +29,7 @@ except Exception:  # pragma: no cover
         MaterialFormMap,
         MaterialGroup,
     )
-    from core.models import Artifact, MainCode  # type: ignore
+    from core.models import Artifact, MainCode, Report  # type: ignore
 
 
 DENSTY_CHOICES = [
@@ -463,5 +464,20 @@ class Command(BaseCommand):
                         "form_type": "GENEL",
                     },
                 )
+
+            sample_artifacts = list(Artifact.objects.filter(main_code__in=MainCode.objects.all()[:3])[:5])
+            if sample_artifacts:
+                report, _ = Report.objects.update_or_create(
+                    title="Örnek Rapor",
+                    defaults={
+                        "report_type": "GENEL",
+                        "prepared_by": "Seed Builder",
+                        "finding_place": finding_places[0],
+                        "writing_date": timezone.now().date(),
+                        "study_year": timezone.now().year,
+                        "description": "Seed builder tarafından oluşturulan örnek rapor.",
+                    },
+                )
+                report.artifacts.set(sample_artifacts)
 
         self.stdout.write(self.style.SUCCESS("Form Builder seed completed."))
