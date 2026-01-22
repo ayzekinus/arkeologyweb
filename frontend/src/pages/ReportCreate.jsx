@@ -14,6 +14,8 @@ const REPORT_TYPES = [
   { value: "DIGER", label: "Diğer" },
 ];
 
+const trCollator = new Intl.Collator("tr");
+
 function RichTextEditor({ value, onChange, placeholder }) {
   const editorRef = useRef(null);
 
@@ -130,7 +132,7 @@ export default function ReportCreate() {
         set.add(String(item.finding_place_label));
       }
     });
-    return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "tr"));
+    return Array.from(set).sort((a, b) => trCollator.compare(String(a ?? ""), String(b ?? "")));
   }, [mainCodes]);
 
   useEffect(() => {
