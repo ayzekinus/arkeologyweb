@@ -16,3 +16,6 @@
 - docker compose exec backend python manage.py migrate
 - docker compose exec backend python manage.py createsuperuser
 - docker compose exec backend python manage.py seed_formbuilder
+
+## Docker Rebuild Steps
+- docker compose up -d --build
