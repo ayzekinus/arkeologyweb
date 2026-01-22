@@ -134,6 +134,7 @@ LOOKUPS = {
 
 
 FORMS = [
+    {"key": "GENEL", "title": "Genel", "order": 0},
     {"key": "SIKKE", "title": "Sikke", "order": 10},
     {"key": "SERAMIK", "title": "Seramik", "order": 20},
     {"key": "TERRACOTTA", "title": "Terracotta", "order": 30},
@@ -216,6 +217,7 @@ FIELDS = [
 
 
 FORM_FIELD_MAP = {
+    "GENEL": [],
     "SIKKE": [
         ("coin.condition", False),
         ("coin.unit", False),
