@@ -37,6 +37,7 @@ export default function ReportList() {
   const [count, setCount] = useState(0);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -74,6 +75,12 @@ export default function ReportList() {
     load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, ordering, filters]);
+
+  useEffect(() => {
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
+      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
+  }, []);
 
   function applyFilters() {
     setFilters({ ...filterDraft });
@@ -162,11 +169,17 @@ export default function ReportList() {
             <div>
               <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
               <div className="mt-1.5">
-                <Input
+                <Select
                   value={filterDraft.finding_place}
                   onChange={(e) => setFilterDraft((prev) => ({ ...prev, finding_place: e.target.value }))}
-                  placeholder="Buluntu yeri"
-                />
+                >
+                  <option value="">Tümü</option>
+                  {findingPlaceOptions.map((place) => (
+                    <option key={String(place.id)} value={String(place.id)}>
+                      {place.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
 
@@ -223,7 +236,7 @@ export default function ReportList() {
                       <td className="px-4 py-3 font-semibold text-slate-900">{row.title}</td>
                       <td className="px-4 py-3">{REPORT_TYPE_LABELS[row.report_type] || row.report_type}</td>
                       <td className="px-4 py-3">{row.prepared_by}</td>
-                      <td className="px-4 py-3">{row.finding_place}</td>
+                      <td className="px-4 py-3">{row.finding_place_label || row.finding_place}</td>
                       <td className="px-4 py-3">{row.study_year}</td>
                       <td className="px-4 py-3">{row.writing_date}</td>
                       <td className="px-4 py-3">{row.artifact_count ?? 0}</td>

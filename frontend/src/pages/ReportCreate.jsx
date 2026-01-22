@@ -98,6 +98,7 @@ export default function ReportCreate() {
   const [err, setErr] = useState("");
 
   const [mainCodes, setMainCodes] = useState([]);
+  const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [form, setForm] = useState({
     report_type: "",
@@ -122,10 +123,10 @@ export default function ReportCreate() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
 
-  const findingPlaceOptions = useMemo(() => {
+  const findingPlaceSearchOptions = useMemo(() => {
     const set = new Set();
     mainCodes.forEach((item) => {
-      if (item.finding_place) set.add(item.finding_place);
+      if (item.finding_place_label) set.add(item.finding_place_label);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
   }, [mainCodes]);
@@ -138,6 +139,12 @@ export default function ReportCreate() {
   useEffect(() => {
     apiGet("/api/main-codes/?page_size=500")
       .then((data) => setMainCodes((data.results || data) ?? []))
+      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
+  }, []);
+
+  useEffect(() => {
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
       .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
 
@@ -280,18 +287,18 @@ export default function ReportCreate() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
                 <div className="mt-1.5">
-                  <Input
-                    list="finding-places"
+                  <Select
+                    required
                     value={form.finding_place}
                     onChange={(e) => setForm((prev) => ({ ...prev, finding_place: e.target.value }))}
-                    placeholder="Buluntu yeri seçin veya yazın"
-                    required
-                  />
-                  <datalist id="finding-places">
+                  >
+                    <option value="">Seçiniz...</option>
                     {findingPlaceOptions.map((place) => (
-                      <option key={place} value={place} />
+                      <option key={String(place.id)} value={String(place.id)}>
+                        {place.label}
+                      </option>
                     ))}
-                  </datalist>
+                  </Select>
                 </div>
               </div>
 
@@ -412,7 +419,7 @@ export default function ReportCreate() {
                   placeholder="Buluntu yeri girin"
                 />
                 <datalist id="finding-places-search">
-                  {findingPlaceOptions.map((place) => (
+                  {findingPlaceSearchOptions.map((place) => (
                     <option key={place} value={place} />
                   ))}
                 </datalist>
