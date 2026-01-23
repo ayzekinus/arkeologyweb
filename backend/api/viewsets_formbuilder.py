@@ -119,10 +119,13 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
             if not group:
                 return Response({"group": None, "forms": []})
 
-            forms = (
+            forms = list(
                 ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
                 .order_by("materialformmap__order", "order", "id")
             )
+            general_form = ArtifactForm.objects.filter(key="KONSERVASYON_GENEL", is_active=True).first()
+            if general_form and all(f.key != general_form.key for f in forms):
+                forms.insert(0, general_form)
             return Response(
                 {
                     "group": {"key": group.key, "title": group.title},
