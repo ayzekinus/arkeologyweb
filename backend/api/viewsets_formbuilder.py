@@ -137,3 +137,11 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                     "forms": [],
                 }
             )
+        except Exception as e:
+            return Response(
+                {
+                    "detail": f"FormBuilder sorgusu başarısız: {e}",
+                    "group": None,
+                    "forms": [],
+                }
+            )
