@@ -361,8 +361,10 @@ export default function ReportCreate() {
               </div>
             </div>
 
-          <div className="flex justify-end">
-              <Button type="submit">Kaydet</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="primary" type="submit">
+                Kaydet
+              </Button>
             </div>
           </form>
         </CardBody>
