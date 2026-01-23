@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from typing import Any, Dict, List, Tuple
 
 from django.db.models import Q
@@ -82,6 +83,30 @@ def _artifact_kv(artifact: Artifact) -> List[Tuple[str, str]]:
         ordered.append((k, flat[k]))
 
     return ordered
+
+
+def _register_dejavu_fonts() -> Tuple[str, str]:
+    base_font = "Helvetica"
+    bold_font = "Helvetica-Bold"
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+    if not (os.path.exists(font_path) and os.path.exists(bold_path)):
+        return base_font, bold_font
+
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+    except Exception:
+        return base_font, bold_font
+
+    registered = set(pdfmetrics.getRegisteredFontNames())
+    if "DejaVuSans" not in registered:
+        pdfmetrics.registerFont(TTFont("DejaVuSans", font_path))
+    if "DejaVuSans-Bold" not in registered:
+        pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", bold_path))
+
+    return "DejaVuSans", "DejaVuSans-Bold"
 
 
 def _report_kv(report: Report) -> List[Tuple[str, str]]:
@@ -506,6 +531,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             except Exception:
                 return Response({"detail": "reportlab yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+            base_font, bold_font = _register_dejavu_fonts()
             s = ArtifactSerializer(artifact).data
             details = s.get("details") or {}
             measurements = s.get("measurements") or {}
@@ -544,14 +570,14 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             def table_for_rows(rows):
                 styles = getSampleStyleSheet()
                 normal = styles["BodyText"]
-                normal.fontName = "Helvetica"
+                normal.fontName = base_font
                 normal.fontSize = 9
                 normal.leading = 12
 
                 key_style = ParagraphStyle(
                     "key",
                     parent=normal,
-                    fontName="Helvetica-Bold",
+                    fontName=bold_font,
                     textColor=colors.HexColor("#0f172a"),
                 )
 
@@ -583,7 +609,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
                 h = ParagraphStyle(
                     "h",
                     parent=styles["Heading3"],
-                    fontName="Helvetica-Bold",
+                    fontName=bold_font,
                     fontSize=12,
                     textColor=colors.HexColor("#0f172a"),
                     spaceAfter=8,
@@ -596,7 +622,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             title_style = ParagraphStyle(
                 "title",
                 parent=styles["Title"],
-                fontName="Helvetica-Bold",
+                fontName=bold_font,
                 fontSize=16,
                 textColor=colors.HexColor("#0f172a"),
                 spaceAfter=10,
@@ -604,7 +630,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
             subtitle_style = ParagraphStyle(
                 "sub",
                 parent=styles["BodyText"],
-                fontName="Helvetica",
+                fontName=base_font,
                 fontSize=9,
                 textColor=colors.HexColor("#475569"),
                 spaceAfter=12,
@@ -730,6 +756,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             except Exception:
                 return Response({"detail": "reportlab yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+            base_font, bold_font = _register_dejavu_fonts()
             s = ReportSerializer(report).data
             report_type_label = dict(Report.REPORT_TYPES).get(s.get("report_type"), s.get("report_type"))
             artifacts = [a.full_artifact_no for a in report.artifacts.all()]
@@ -755,14 +782,21 @@ class ReportViewSet(viewsets.ModelViewSet):
 
             styles = getSampleStyleSheet()
             normal = styles["BodyText"]
-            normal.fontName = "Helvetica"
+            normal.fontName = base_font
             normal.fontSize = 9
             normal.leading = 12
+
+            title_style = ParagraphStyle(
+                "title",
+                parent=styles["Title"],
+                fontName=bold_font,
+                textColor=colors.HexColor("#0f172a"),
+            )
 
             key_style = ParagraphStyle(
                 "key",
                 parent=normal,
-                fontName="Helvetica-Bold",
+                fontName=bold_font,
                 textColor=colors.HexColor("#0f172a"),
             )
 
@@ -781,7 +815,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                 bottomMargin=15 * mm,
             )
             story = [
-                Paragraph("Rapor", styles["Title"]),
+                Paragraph("Rapor", title_style),
                 Spacer(1, 6 * mm),
                 Table(
                     data,
