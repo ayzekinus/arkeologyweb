@@ -7,6 +7,8 @@ import AnakodCreate from "./pages/AnakodCreate.jsx";
 import AnakodList from "./pages/AnakodList.jsx";
 import BuluntuCreate from "./pages/BuluntuCreate.jsx";
 import BuluntuList from "./pages/BuluntuList.jsx";
+import ConservationCreate from "./pages/ConservationCreate.jsx";
+import ConservationList from "./pages/ConservationList.jsx";
 import ReportCreate from "./pages/ReportCreate.jsx";
 import ReportList from "./pages/ReportList.jsx";
 
@@ -42,6 +44,15 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="olustur" replace /> },
           { path: "olustur", element: <ReportCreate /> },
           { path: "listele", element: <ReportList /> },
+        ],
+      },
+
+      {
+        path: "konservasyon",
+        children: [
+          { index: true, element: <Navigate to="olustur" replace /> },
+          { path: "olustur", element: <ConservationCreate /> },
+          { path: "listele", element: <ConservationList /> },
         ],
       },
     ],
