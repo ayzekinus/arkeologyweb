@@ -1,14 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet } from "../api.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
-
-const MATERIAL_FORM_FIELDS = {
-  // örnek: cam için alanlar ileride burada tanımlanabilir
-  // cam: [{ key: "surface_state", label: "Yüzey Durumu" }],
-};
+import SchemaFields from "../components/SchemaFields.jsx";
 
 function buildQuery(params) {
   const qs = new URLSearchParams();
@@ -25,11 +21,14 @@ export default function ConservationCreate() {
   const navigate = useNavigate();
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [lookups, setLookups] = useState({});
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [formData, setFormData] = useState({});
+  const [formSchemas, setFormSchemas] = useState([]);
+  const [formsLoading, setFormsLoading] = useState(false);
 
   const [searchFilters, setSearchFilters] = useState({
     q: "",
@@ -38,11 +37,59 @@ export default function ConservationCreate() {
     artifact_no: "",
   });
 
-  const materialKey = useMemo(
-    () => String(selectedArtifact?.production_material || "").trim().toLowerCase(),
+  const materialLabel = useMemo(
+    () => String(selectedArtifact?.production_material || "").trim(),
     [selectedArtifact]
   );
-  const materialFields = MATERIAL_FORM_FIELDS[materialKey] || [];
+
+  useEffect(() => {
+    apiGet("/api/lookups/?keys=FINDING_PLACE")
+      .then((data) => setLookups(data || {}))
+      .catch(() => setLookups({}));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedArtifact) {
+      setFormSchemas([]);
+      return;
+    }
+    const material = String(selectedArtifact.production_material || "").trim();
+    if (!material) {
+      setFormSchemas([]);
+      return;
+    }
+    setFormsLoading(true);
+    apiGet(`/api/forms/by-material?material=${encodeURIComponent(material)}`)
+      .then(async (data) => {
+        const forms = data?.forms || [];
+        if (!forms.length) {
+          setFormSchemas([]);
+          return;
+        }
+        const schemas = await Promise.all(
+          forms.map(async (form) => {
+            const payload = await apiGet(`/api/forms/${form.key}/schema/`);
+            return { ...payload, form };
+          })
+        );
+        setFormSchemas(schemas);
+      })
+      .catch((e) => setErr(e.message || "Konservasyon formları alınamadı."))
+      .finally(() => setFormsLoading(false));
+  }, [selectedArtifact]);
+
+  useEffect(() => {
+    if (!formSchemas.length) return;
+    const hasConservator = formSchemas.some((schema) =>
+      (schema.sections || []).some((sec) => (sec.fields || []).some((f) => f.key === "conservation.conservator"))
+    );
+    if (!hasConservator) return;
+    setFormData((prev) => {
+      if (prev["conservation.conservator"]) return prev;
+      const fullName = localStorage.getItem("user_full_name") || "Oturum Açan Kullanıcı";
+      return { ...prev, "conservation.conservator": fullName };
+    });
+  }, [formSchemas]);
 
   async function onSearchArtifacts() {
     setSearchError("");
@@ -74,6 +121,69 @@ export default function ConservationCreate() {
   function onFieldChange(key, value) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }
+
+  function lookupOptions(key) {
+    return Array.isArray(lookups?.[key]) ? lookups[key] : [];
+  }
+
+  function adaptFieldDef(fd) {
+    const base = {
+      key: fd.key,
+      label: fd.label || fd.key,
+      required: !!fd.required,
+      readonly: !!fd.readonly,
+      helpText: fd.help_text || "",
+      fullWidth: !!fd.full_width,
+      inputType: fd.data_type === "int" || fd.data_type === "decimal" ? "number" : "text",
+      order: typeof fd.order === "number" ? fd.order : 999,
+    };
+
+    if (fd.unit_group) {
+      return {
+        ...base,
+        kind: "measure",
+        unitKey: `${fd.key}_unit`,
+        unitType: fd.unit_group,
+        unitOptions: fd.unit_options || [],
+        inputType: "number",
+      };
+    }
+
+    if (fd.data_type === "text") return { ...base, kind: "textarea" };
+    if (fd.data_type === "bool") return { ...base, kind: "bool" };
+    if (fd.data_type === "date") return { ...base, kind: "date" };
+    if (fd.data_type === "file") {
+      return { ...base, kind: "file", multiple: fd.key.endsWith("images") || fd.key.endsWith("image") };
+    }
+
+    if (fd.data_type === "multiselect") {
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      return { ...base, kind: "multiselect", options };
+    }
+
+    if (fd.data_type === "choice" || fd.data_type === "select") {
+      const options = (fd.choices && fd.choices.length ? fd.choices : lookupOptions(fd.list_type));
+      if (options.length) {
+        return { ...base, kind: "enum", options };
+      }
+      return { ...base, kind: "text" };
+    }
+
+    return { ...base, kind: "text" };
+  }
+
+  const dynamicSections = useMemo(() => {
+    const sections = [];
+    formSchemas.forEach((schema) => {
+      const titlePrefix = schema?.form?.title ? `${schema.form.title} - ` : "";
+      (schema.sections || []).forEach((sec) => {
+        const fields = (sec.fields || []).map((fd) => adaptFieldDef(fd));
+        fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        sections.push({ title: `${titlePrefix}${sec.title}`, fields });
+      });
+    });
+    return sections;
+  }, [formSchemas, lookups]);
 
   return (
     <div className="space-y-4">
@@ -200,26 +310,29 @@ export default function ConservationCreate() {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                 <div className="font-semibold">{selectedArtifact.full_artifact_no || "Buluntu"}</div>
                 <div className="text-xs text-slate-500">
-                  Yapım Malzemesi: {selectedArtifact.production_material || "Belirtilmemiş"}
+                  Yapım Malzemesi: {materialLabel || "Belirtilmemiş"}
                 </div>
               </div>
 
-              {materialFields.length === 0 ? (
+              {formsLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                  Konservasyon formu yükleniyor...
+                </div>
+              ) : dynamicSections.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                   Bu yapım malzemesi için henüz form alanları tanımlı değil. Alanları paylaştığınızda burada
                   gösterilecektir.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {materialFields.map((field) => (
-                    <div key={field.key}>
-                      <label className="text-sm font-semibold text-slate-700">{field.label}</label>
-                      <div className="mt-1.5">
-                        <Input value={formData[field.key] || ""} onChange={(e) => onFieldChange(field.key, e.target.value)} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                dynamicSections.map((section, idx) => (
+                  <SchemaFields
+                    key={`${section.title}-${idx}`}
+                    title={section.title}
+                    schema={section.fields}
+                    data={formData}
+                    onChange={onFieldChange}
+                  />
+                ))
               )}
             </>
           )}
