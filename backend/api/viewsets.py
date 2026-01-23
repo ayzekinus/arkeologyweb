@@ -84,6 +84,50 @@ def _artifact_kv(artifact: Artifact) -> List[Tuple[str, str]]:
     return ordered
 
 
+def _report_kv(report: Report) -> List[Tuple[str, str]]:
+    s = ReportSerializer(report).data
+    report_type_label = dict(Report.REPORT_TYPES).get(s.get("report_type"), s.get("report_type"))
+    artifacts = [a.full_artifact_no for a in report.artifacts.all()]
+
+    base: Dict[str, Any] = {
+        "report_type": report_type_label,
+        "prepared_by": s.get("prepared_by"),
+        "finding_place": s.get("finding_place_label") or s.get("finding_place"),
+        "writing_date": s.get("writing_date"),
+        "study_year": s.get("study_year"),
+        "title": s.get("title"),
+        "description": s.get("description"),
+        "artifact_count": s.get("artifact_count"),
+        "artifacts": artifacts,
+    }
+
+    remainder = {
+        "images": s.get("images") or [],
+        "created_at": s.get("created_at"),
+        "updated_at": s.get("updated_at"),
+    }
+
+    flat: Dict[str, str] = {}
+    for k, v in base.items():
+        if isinstance(v, list):
+            flat[k] = json.dumps(v, ensure_ascii=False)
+        else:
+            flat[k] = "" if v is None else str(v)
+
+    for k, v in remainder.items():
+        _flatten(f"{k}.", v, flat)
+
+    ordered: List[Tuple[str, str]] = []
+    for k in base.keys():
+        ordered.append((k, flat.get(k, "")))
+
+    rest_keys = [k for k in flat.keys() if k not in base.keys()]
+    for k in sorted(rest_keys):
+        ordered.append((k, flat[k]))
+
+    return ordered
+
+
 def _artifact_sections(artifact: Artifact) -> Dict[str, Any]:
     """Return serializer data split into UI-like sections."""
     s = ArtifactSerializer(artifact).data
@@ -633,6 +677,135 @@ class ArtifactViewSet(viewsets.ModelViewSet):
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.prefetch_related("artifacts").all().order_by("-created_at")
     serializer_class = ReportSerializer
+
+    @action(detail=True, methods=["get"], url_path="export")
+    def export(self, request, pk=None):
+        report = self.get_object()
+        fmt = (request.query_params.get("export") or request.query_params.get("format") or "csv").lower().strip()
+        filename_base = f"report-{report.pk}"
+
+        kv = _report_kv(report)
+
+        if fmt == "csv":
+            sio = io.StringIO()
+            w = csv.writer(sio)
+            w.writerow(["field", "value"])
+            for k, v in kv:
+                w.writerow([k, v])
+            data = sio.getvalue().encode("utf-8-sig")
+            resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.csv"'
+            return resp
+
+        if fmt in ("xlsx", "excel"):
+            try:
+                from openpyxl import Workbook
+            except Exception:
+                return Response({"detail": "openpyxl yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Report"
+            ws.append(["field", "value"])
+            for k, v in kv:
+                ws.append([k, v])
+
+            bio = io.BytesIO()
+            wb.save(bio)
+            bio.seek(0)
+            resp = HttpResponse(
+                bio.read(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.xlsx"'
+            return resp
+
+        if fmt == "pdf":
+            try:
+                from reportlab.lib import colors
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import mm
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            except Exception:
+                return Response({"detail": "reportlab yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            s = ReportSerializer(report).data
+            report_type_label = dict(Report.REPORT_TYPES).get(s.get("report_type"), s.get("report_type"))
+            artifacts = [a.full_artifact_no for a in report.artifacts.all()]
+
+            def fmt_value(value: Any) -> str:
+                if value is None:
+                    return ""
+                if isinstance(value, list):
+                    return ", ".join([str(v) for v in value])
+                return str(value)
+
+            rows = [
+                ("Rapor Tipi", report_type_label),
+                ("Raporu Hazırlayan", s.get("prepared_by")),
+                ("Buluntu Yeri", s.get("finding_place_label") or s.get("finding_place")),
+                ("Yazım Tarihi", s.get("writing_date")),
+                ("Çalışma Yılı", s.get("study_year")),
+                ("Başlık", s.get("title")),
+                ("Açıklama", s.get("description")),
+                ("Buluntu Sayısı", s.get("artifact_count")),
+                ("Buluntular", artifacts),
+            ]
+
+            styles = getSampleStyleSheet()
+            normal = styles["BodyText"]
+            normal.fontName = "Helvetica"
+            normal.fontSize = 9
+            normal.leading = 12
+
+            key_style = ParagraphStyle(
+                "key",
+                parent=normal,
+                fontName="Helvetica-Bold",
+                textColor=colors.HexColor("#0f172a"),
+            )
+
+            data = []
+            for k, v in rows:
+                v = fmt_value(v).replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br/>")
+                data.append([Paragraph(str(k), key_style), Paragraph(v, normal)])
+
+            bio = io.BytesIO()
+            doc = SimpleDocTemplate(
+                bio,
+                pagesize=A4,
+                leftMargin=15 * mm,
+                rightMargin=15 * mm,
+                topMargin=15 * mm,
+                bottomMargin=15 * mm,
+            )
+            story = [
+                Paragraph("Rapor", styles["Title"]),
+                Spacer(1, 6 * mm),
+                Table(
+                    data,
+                    colWidths=[50 * mm, 140 * mm],
+                    style=TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+                            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0f172a")),
+                            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5f5")),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ]
+                    ),
+                ),
+            ]
+            doc.build(story)
+            bio.seek(0)
+            resp = HttpResponse(bio.read(), content_type="application/pdf")
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.pdf"'
+            return resp
+
+        return Response(
+            {"detail": "format desteklenmiyor. csv | xlsx | pdf"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()

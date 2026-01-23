@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { apiGet, apiPost } from "../api.js";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { apiGet, apiPatch, apiPost } from "../api.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -16,7 +16,7 @@ const REPORT_TYPES = [
 
 const trCollator = new Intl.Collator("tr");
 
-function RichTextEditor({ value, onChange, placeholder }) {
+function RichTextEditor({ value, onChange, placeholder, disabled = false }) {
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -27,44 +27,49 @@ function RichTextEditor({ value, onChange, placeholder }) {
   }, [value]);
 
   function exec(command, commandValue = null) {
+    if (disabled) return;
     document.execCommand(command, false, commandValue);
     editorRef.current?.focus();
   }
 
   function onInput(e) {
+    if (disabled) return;
     onChange(e.currentTarget.innerHTML);
   }
 
   function addLink() {
+    if (disabled) return;
     const url = prompt("Bağlantı URL'sini girin:");
     if (url) exec("createLink", url);
   }
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <button type="button" className="text-xs font-semibold" onClick={() => exec("bold")}>
-          Kalın
-        </button>
-        <button type="button" className="text-xs font-semibold" onClick={() => exec("italic")}>
-          Italik
-        </button>
-        <button type="button" className="text-xs font-semibold" onClick={() => exec("underline")}>
-          Altı Çizili
-        </button>
-        <button type="button" className="text-xs font-semibold" onClick={() => exec("insertUnorderedList")}>
-          Liste
-        </button>
-        <button type="button" className="text-xs font-semibold" onClick={() => exec("insertOrderedList")}>
-          Numaralı Liste
-        </button>
-        <button type="button" className="text-xs font-semibold" onClick={addLink}>
-          Bağlantı
-        </button>
-      </div>
+      {!disabled ? (
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+          <button type="button" className="text-xs font-semibold" onClick={() => exec("bold")}>
+            Kalın
+          </button>
+          <button type="button" className="text-xs font-semibold" onClick={() => exec("italic")}>
+            Italik
+          </button>
+          <button type="button" className="text-xs font-semibold" onClick={() => exec("underline")}>
+            Altı Çizili
+          </button>
+          <button type="button" className="text-xs font-semibold" onClick={() => exec("insertUnorderedList")}>
+            Liste
+          </button>
+          <button type="button" className="text-xs font-semibold" onClick={() => exec("insertOrderedList")}>
+            Numaralı Liste
+          </button>
+          <button type="button" className="text-xs font-semibold" onClick={addLink}>
+            Bağlantı
+          </button>
+        </div>
+      ) : null}
       <div
         ref={editorRef}
-        contentEditable
+        contentEditable={!disabled}
         suppressContentEditableWarning
         onInput={onInput}
         className="rich-editor min-h-[180px] px-3 py-2 text-sm text-slate-700 focus:outline-none"
@@ -96,6 +101,9 @@ function toBase64(file) {
 
 export default function ReportCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id");
+  const isView = searchParams.get("view") === "1";
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
@@ -125,6 +133,8 @@ export default function ReportCreate() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
 
+  const isReadOnly = Boolean(isView);
+
   const findingPlaceSearchOptions = useMemo(() => {
     const set = new Set();
     mainCodes.forEach((item) => {
@@ -151,6 +161,34 @@ export default function ReportCreate() {
       .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
       .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
   }, []);
+
+  useEffect(() => {
+    if (!editId) return;
+    apiGet(`/api/reports/${editId}/`)
+      .then(async (data) => {
+        setForm({
+          report_type: data.report_type || "",
+          prepared_by: data.prepared_by || "",
+          finding_place: data.finding_place ? String(data.finding_place) : "",
+          writing_date: data.writing_date || "",
+          study_year: data.study_year ? String(data.study_year) : "",
+          title: data.title || "",
+          description: data.description || "",
+        });
+        setGallery(data.images || []);
+
+        const artifactIds = Array.isArray(data.artifacts) ? data.artifacts : [];
+        if (artifactIds.length) {
+          const artifacts = await Promise.all(
+            artifactIds.map((id) => apiGet(`/api/artifacts/${id}/`).catch(() => null))
+          );
+          setSelectedArtifacts(artifacts.filter(Boolean));
+        } else {
+          setSelectedArtifacts([]);
+        }
+      })
+      .catch((e) => setErr(e.message || "Rapor yüklenemedi."));
+  }, [editId]);
 
   async function onSearchArtifacts() {
     setSearchError("");
@@ -207,10 +245,11 @@ export default function ReportCreate() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (isReadOnly) return;
     setErr("");
     setMsg("");
     try {
-      await apiPost("/api/reports/", {
+      const payload = {
         report_type: form.report_type,
         prepared_by: form.prepared_by,
         finding_place: form.finding_place,
@@ -220,19 +259,25 @@ export default function ReportCreate() {
         description: form.description,
         artifacts: selectedArtifacts.map((a) => a.id),
         images: gallery,
-      });
-      setMsg("Rapor kaydedildi.");
-      setForm((prev) => ({
-        ...prev,
-        report_type: "",
-        finding_place: "",
-        writing_date: "",
-        study_year: "",
-        title: "",
-        description: "",
-      }));
-      setSelectedArtifacts([]);
-      setGallery([]);
+      };
+      if (editId) {
+        await apiPatch(`/api/reports/${editId}/`, payload);
+        setMsg("Rapor güncellendi.");
+      } else {
+        await apiPost("/api/reports/", payload);
+        setMsg("Rapor kaydedildi.");
+        setForm((prev) => ({
+          ...prev,
+          report_type: "",
+          finding_place: "",
+          writing_date: "",
+          study_year: "",
+          title: "",
+          description: "",
+        }));
+        setSelectedArtifacts([]);
+        setGallery([]);
+      }
     } catch (e3) {
       setErr(e3.message || "Rapor kaydedilemedi.");
     }
@@ -242,8 +287,14 @@ export default function ReportCreate() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Rapor Oluştur</h1>
-          <p className="mt-1 text-sm text-slate-600">Rapor bilgilerini kaydedin ve buluntuları ekleyin.</p>
+          <h1 className="text-2xl font-extrabold">
+            {isView ? "Rapor Görüntüle" : `Rapor ${editId ? "Güncelle" : "Oluştur"}`}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {isView
+              ? "Rapor bilgilerini görüntülüyorsunuz."
+              : "Rapor bilgilerini kaydedin ve buluntuları ekleyin."}
+          </p>
         </div>
 
         <div className="flex gap-2">
@@ -270,6 +321,7 @@ export default function ReportCreate() {
                     required
                     value={form.report_type}
                     onChange={(e) => setForm((prev) => ({ ...prev, report_type: e.target.value }))}
+                    disabled={isReadOnly}
                   >
                     <option value="">Seçiniz...</option>
                     {REPORT_TYPES.map((opt) => (
@@ -284,7 +336,11 @@ export default function ReportCreate() {
               <div>
                 <label className="text-sm font-semibold text-slate-700">Raporu Hazırlayan</label>
                 <div className="mt-1.5">
-                  <Input value={form.prepared_by} readOnly />
+                  <Input
+                    value={form.prepared_by}
+                    onChange={(e) => setForm((prev) => ({ ...prev, prepared_by: e.target.value }))}
+                    readOnly={isReadOnly}
+                  />
                 </div>
               </div>
 
@@ -295,6 +351,7 @@ export default function ReportCreate() {
                     required
                     value={form.finding_place}
                     onChange={(e) => setForm((prev) => ({ ...prev, finding_place: e.target.value }))}
+                    disabled={isReadOnly}
                   >
                     <option value="">Seçiniz...</option>
                     {findingPlaceOptions.map((place) => (
@@ -314,6 +371,7 @@ export default function ReportCreate() {
                     value={form.writing_date}
                     onChange={(e) => setForm((prev) => ({ ...prev, writing_date: e.target.value }))}
                     required
+                    readOnly={isReadOnly}
                   />
                 </div>
               </div>
@@ -332,6 +390,7 @@ export default function ReportCreate() {
                     }
                     placeholder="2024"
                     required
+                    readOnly={isReadOnly}
                   />
                 </div>
                 <p className="mt-1 text-xs text-slate-500">4 haneli yıl bilgisi.</p>
@@ -345,6 +404,7 @@ export default function ReportCreate() {
                     onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                     placeholder="Rapor başlığını girin"
                     required
+                    readOnly={isReadOnly}
                   />
                 </div>
               </div>
@@ -357,14 +417,17 @@ export default function ReportCreate() {
                   value={form.description}
                   onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
                   placeholder="Rapor açıklamasını girin"
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="primary" type="submit">
-                Kaydet
-              </Button>
+              {!isReadOnly ? (
+                <Button variant="primary" type="submit">
+                  {editId ? "Rapor Güncelle" : "Kaydet"}
+                </Button>
+              ) : null}
             </div>
           </form>
         </CardBody>
@@ -383,6 +446,7 @@ export default function ReportCreate() {
                   value={searchFilters.q}
                   onChange={(e) => setSearchFilters((prev) => ({ ...prev, q: e.target.value }))}
                   placeholder="Buluntu no, anakod, dönem..."
+                  readOnly={isReadOnly}
                 />
               </div>
             </div>
@@ -394,6 +458,7 @@ export default function ReportCreate() {
                   value={searchFilters.main_code_code}
                   onChange={(e) => setSearchFilters((prev) => ({ ...prev, main_code_code: e.target.value }))}
                   placeholder="AAA"
+                  readOnly={isReadOnly}
                 />
               </div>
             </div>
@@ -411,6 +476,7 @@ export default function ReportCreate() {
                     }))
                   }
                   placeholder="1234"
+                  readOnly={isReadOnly}
                 />
               </div>
             </div>
@@ -423,6 +489,7 @@ export default function ReportCreate() {
                   value={searchFilters.finding_place}
                   onChange={(e) => setSearchFilters((prev) => ({ ...prev, finding_place: e.target.value }))}
                   placeholder="Buluntu yeri girin"
+                  readOnly={isReadOnly}
                 />
                 <datalist id="finding-places-search">
                   {findingPlaceSearchOptions.map((place) => (
@@ -433,7 +500,12 @@ export default function ReportCreate() {
             </div>
 
             <div className="flex items-end">
-              <Button type="button" variant="secondary" onClick={onSearchArtifacts} disabled={searchLoading}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onSearchArtifacts}
+                disabled={searchLoading || isReadOnly}
+              >
                 {searchLoading ? "Aranıyor..." : "Buluntu Ara"}
               </Button>
             </div>
@@ -460,7 +532,7 @@ export default function ReportCreate() {
                       {item.main_code_finding_place || "Buluntu yeri yok"} · {item.form_type || "Form yok"}
                     </div>
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => addArtifact(item)}>
+                  <Button type="button" variant="secondary" onClick={() => addArtifact(item)} disabled={isReadOnly}>
                     Ekle
                   </Button>
                 </div>
@@ -489,7 +561,12 @@ export default function ReportCreate() {
                         {item.main_code_finding_place || "Buluntu yeri yok"} · {item.form_type || "Form yok"}
                       </div>
                     </div>
-                    <Button type="button" variant="secondary" onClick={() => removeArtifact(item.id)}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => removeArtifact(item.id)}
+                      disabled={isReadOnly}
+                    >
                       Kaldır
                     </Button>
                   </div>
@@ -506,7 +583,7 @@ export default function ReportCreate() {
         </CardHeader>
         <CardBody className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="file" accept="image/*" multiple onChange={onGalleryChange} />
+            <Input type="file" accept="image/*" multiple onChange={onGalleryChange} disabled={isReadOnly} />
             <span className="text-xs text-slate-500">Birden fazla fotoğraf ekleyebilirsiniz.</span>
           </div>
 
@@ -523,6 +600,7 @@ export default function ReportCreate() {
                     type="button"
                     onClick={() => removeImage(idx)}
                     className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700 shadow"
+                    disabled={isReadOnly}
                   >
                     Sil
                   </button>
