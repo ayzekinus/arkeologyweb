@@ -3,8 +3,9 @@ from collections import OrderedDict
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils.text import slugify
 
-from .models import ArtifactForm, ArtifactFormField
+from .models import ArtifactForm, ArtifactFormField, MaterialAlias, MaterialGroup
 from .serializers_formbuilder import ArtifactFormSerializer
 
 
@@ -89,3 +90,35 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
             "sections": [{"title": title, "fields": fields} for title, fields in sections.items()],
         }
         return Response(payload)
+
+    @action(detail=False, methods=["get"], url_path="by-material")
+    def by_material(self, request):
+        material = (request.query_params.get("material") or "").strip()
+        if not material:
+            return Response({"detail": "material parametresi gerekli."}, status=400)
+
+        alias = (
+            MaterialAlias.objects.select_related("group")
+            .filter(name__iexact=material)
+            .first()
+        )
+        group = alias.group if alias else None
+        if not group:
+            slug = slugify(material).upper()
+            group = (
+                MaterialGroup.objects.filter(key__iexact=slug).first()
+                or MaterialGroup.objects.filter(title__iexact=material).first()
+            )
+        if not group:
+            return Response({"group": None, "forms": []})
+
+        forms = (
+            ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
+            .order_by("materialformmap__order", "order", "id")
+        )
+        return Response(
+            {
+                "group": {"key": group.key, "title": group.title},
+                "forms": ArtifactFormSerializer(forms, many=True).data,
+            }
+        )

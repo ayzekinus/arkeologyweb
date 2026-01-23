@@ -117,6 +117,56 @@ export default function SchemaFields({ title, schema = [], data = {}, onChange }
       );
     }
 
+    // FILE
+    if (f.kind === "file") {
+      const files = Array.isArray(value) ? value : [];
+      async function onFilesChange(e) {
+        const nextFiles = Array.from(e.target.files || []);
+        if (!nextFiles.length) {
+          set(f.key, []);
+          return;
+        }
+        const toBase64 = (file) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ name: file.name, url: reader.result });
+            reader.onerror = () => reject(new Error("Dosya okunamadı."));
+            reader.readAsDataURL(file);
+          });
+        try {
+          const encoded = await Promise.all(nextFiles.map((file) => toBase64(file)));
+          set(f.key, encoded);
+        } catch {
+          set(f.key, []);
+        }
+      }
+
+      return (
+        <Field
+          key={f.key}
+          label={f.label}
+          required={f.required}
+          hint={f.helpText}
+          className={f.fullWidth ? "md:col-span-2" : ""}
+        >
+          <input
+            type="file"
+            multiple={!!f.multiple}
+            onChange={onFilesChange}
+            disabled={commonProps.disabled}
+            className="w-full rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm"
+          />
+          {files.length ? (
+            <ul className="mt-2 list-disc pl-5 text-xs text-slate-600">
+              {files.map((file) => (
+                <li key={file.name}>{file.name}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Field>
+      );
+    }
+
     // MULTISELECT
     if (f.kind === "multiselect") {
       const options = f._options || [];
