@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiGet } from "../api.js";
+import { apiDelete, apiGet } from "../api.js";
+import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -29,6 +30,16 @@ function buildQuery(params) {
     qs.set(k, s);
   });
   return qs.toString();
+}
+
+function download(url) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export default function ReportList() {
@@ -97,6 +108,26 @@ export default function ReportList() {
     setFilterDraft(empty);
     setFilters(empty);
     setPage(1);
+  }
+
+  async function onDelete(id) {
+    if (!confirm("Silmek istediğinize emin misiniz?")) return;
+    try {
+      await apiDelete(`/api/reports/${id}/`);
+      setMsg("Rapor silindi.");
+      load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    } catch (e) {
+      setErr(e.message || "Silme başarısız.");
+    }
+  }
+
+  function onExport(id, format) {
+    if (!id) {
+      setErr("Export için kayıt id bulunamadı.");
+      return;
+    }
+    download(`/api/reports/${id}/export?format=${format}`);
+    setMsg(`Export başlatıldı: report-${id}.${format}`);
   }
 
   return (
@@ -221,12 +252,14 @@ export default function ReportList() {
                   <th className="px-4 py-3">Çalışma Yılı</th>
                   <th className="px-4 py-3">Yazım Tarihi</th>
                   <th className="px-4 py-3">Buluntu</th>
+                  <th className="px-4 py-3">Detay</th>
+                  <th className="px-4 py-3">Export</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                    <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
                       Henüz rapor bulunmuyor.
                     </td>
                   </tr>
@@ -240,6 +273,68 @@ export default function ReportList() {
                       <td className="px-4 py-3">{row.study_year}</td>
                       <td className="px-4 py-3">{row.writing_date}</td>
                       <td className="px-4 py-3">{row.artifact_count ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => navigate(`/rapor/olustur?id=${row.id}&view=1`)}
+                            aria-label="Görüntüle"
+                            title="Görüntüle"
+                          >
+                            <IconView />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => navigate(`/rapor/olustur?id=${row.id}`)}
+                            aria-label="Düzenle"
+                            title="Düzenle"
+                          >
+                            <IconEdit />
+                          </Button>
+                          <Button
+                            variant="danger"
+                            className="py-1.5"
+                            onClick={() => onDelete(row.id)}
+                            aria-label="Sil"
+                            title="Sil"
+                          >
+                            <IconDelete />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => onExport(row.id, "pdf")}
+                            aria-label="PDF"
+                            title="PDF"
+                          >
+                            <IconPdf />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => onExport(row.id, "xlsx")}
+                            aria-label="XLS"
+                            title="XLS"
+                          >
+                            <IconXls />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => onExport(row.id, "csv")}
+                            aria-label="CSV"
+                            title="CSV"
+                          >
+                            <IconCsv />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
