@@ -53,6 +53,11 @@ export default function Layout() {
             <NavItem to="/rapor/olustur">Rapor Oluştur</NavItem>
             <NavItem to="/rapor/listele">Rapor Listele</NavItem>
           </NavGroup>
+
+          <NavGroup title="Konservasyon">
+            <NavItem to="/konservasyon/olustur">Oluştur</NavItem>
+            <NavItem to="/konservasyon/listele">Listele</NavItem>
+          </NavGroup>
         </nav>
       </aside>
 

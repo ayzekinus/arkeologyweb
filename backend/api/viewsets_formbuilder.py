@@ -4,7 +4,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import ArtifactForm, ArtifactFormField
+from .models import ArtifactForm, ArtifactFormField, MaterialAlias
 from .serializers_formbuilder import ArtifactFormSerializer
 
 
@@ -89,3 +89,28 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
             "sections": [{"title": title, "fields": fields} for title, fields in sections.items()],
         }
         return Response(payload)
+
+    @action(detail=False, methods=["get"], url_path="by-material")
+    def by_material(self, request):
+        material = (request.query_params.get("material") or "").strip()
+        if not material:
+            return Response({"detail": "material parametresi gerekli."}, status=400)
+
+        alias = (
+            MaterialAlias.objects.select_related("group")
+            .filter(name__iexact=material)
+            .first()
+        )
+        if not alias:
+            return Response({"group": None, "forms": []})
+
+        forms = (
+            ArtifactForm.objects.filter(materialformmap__group=alias.group, is_active=True)
+            .order_by("materialformmap__order", "order", "id")
+        )
+        return Response(
+            {
+                "group": {"key": alias.group.key, "title": alias.group.title},
+                "forms": ArtifactFormSerializer(forms, many=True).data,
+            }
+        )
