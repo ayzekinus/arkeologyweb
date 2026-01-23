@@ -4,6 +4,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils.text import slugify
+from django.db.utils import OperationalError, ProgrammingError
 
 from .models import ArtifactForm, ArtifactFormField, MaterialAlias, MaterialGroup
 from .serializers_formbuilder import ArtifactFormSerializer
@@ -97,28 +98,42 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
         if not material:
             return Response({"detail": "material parametresi gerekli."}, status=400)
 
-        alias = (
-            MaterialAlias.objects.select_related("group")
-            .filter(name__iexact=material)
-            .first()
-        )
-        group = alias.group if alias else None
-        if not group:
-            slug = slugify(material).upper()
-            group = (
-                MaterialGroup.objects.filter(key__iexact=slug).first()
-                or MaterialGroup.objects.filter(title__iexact=material).first()
+        try:
+            alias = (
+                MaterialAlias.objects.select_related("group")
+                .filter(name__iexact=material)
+                .first()
             )
-        if not group:
-            return Response({"group": None, "forms": []})
+            group = alias.group if alias else None
+            if not group:
+                slug = slugify(material, allow_unicode=True).lower()
+                group_key_map = {"cam": "GLASS", "glass": "GLASS"}
+                group_key = group_key_map.get(slug)
+                group = (
+                    MaterialGroup.objects.filter(key__iexact=group_key).first()
+                    if group_key
+                    else None
+                ) or MaterialGroup.objects.filter(key__iexact=slug.upper()).first()
+                if not group:
+                    group = MaterialGroup.objects.filter(title__iexact=material).first()
+            if not group:
+                return Response({"group": None, "forms": []})
 
-        forms = (
-            ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
-            .order_by("materialformmap__order", "order", "id")
-        )
-        return Response(
-            {
-                "group": {"key": group.key, "title": group.title},
-                "forms": ArtifactFormSerializer(forms, many=True).data,
-            }
-        )
+            forms = (
+                ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
+                .order_by("materialformmap__order", "order", "id")
+            )
+            return Response(
+                {
+                    "group": {"key": group.key, "title": group.title},
+                    "forms": ArtifactFormSerializer(forms, many=True).data,
+                }
+            )
+        except (OperationalError, ProgrammingError):
+            return Response(
+                {
+                    "detail": "FormBuilder tabloları hazır değil. migrate/seed işlemleri gerekiyor.",
+                    "group": None,
+                    "forms": [],
+                }
+            )
