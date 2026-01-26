@@ -62,6 +62,52 @@ TEXTURE = [
     {"value": "2", "label": "Yumuşak"},
 ]
 
+GLASS_OBJECT_FEATURES = [
+    {"value": "bezemeli", "label": "Bezemeli"},
+    {"value": "renkli", "label": "Renkli"},
+]
+
+GLASS_CURRENT_STATE = [
+    {"value": "tum", "label": "Tüm"},
+    {"value": "kirik", "label": "Kırık"},
+    {"value": "parcali", "label": "Parçalı"},
+]
+
+GLASS_LIME_DECAY = [
+    {"value": "ince", "label": "İnce"},
+    {"value": "kalin", "label": "Kalın"},
+    {"value": "lokal", "label": "Lokal"},
+    {"value": "tum", "label": "Tüm"},
+]
+
+GLASS_DECAY_TYPES = [
+    {"value": "matlasma", "label": "Matlaşma"},
+    {"value": "irizasyon", "label": "İrizasyon"},
+    {"value": "kahve_siyah", "label": "Kahve Rengi - Siyah Lekelenme"},
+    {"value": "yapraklanma", "label": "Yapraklanma"},
+    {"value": "yarik", "label": "Yarık Oluşumu"},
+    {"value": "opaklasma", "label": "Opaklaşma"},
+    {"value": "crizzling", "label": "Crizzling"},
+]
+
+GLASS_CHEMICAL_CLEAN = [
+    {"value": "saf_su", "label": "Saf Su"},
+    {"value": "alkol", "label": "Alkol"},
+]
+
+GLASS_MECHANICAL_CLEAN = [
+    {"value": "bisturi", "label": "Bisturi"},
+    {"value": "firca", "label": "Fırça"},
+]
+
+GLASS_ADHESIVE = [
+    {"value": "araldit_2020", "label": "Araldit 2020"},
+]
+
+GLASS_CONSOLIDATION = [
+    {"value": "paraloid_b72", "label": "Paraloid B-72"},
+]
+
 LOOKUPS = {
     "FINDING_PLACE": [
         {"value": "Alan A", "label": "Alan A", "order": 10},
@@ -142,6 +188,8 @@ FORMS = [
     {"key": "FIGURIN", "title": "Figürin", "order": 40},
     {"key": "MEZAR", "title": "Mezar", "order": 50},
     {"key": "CAM_METAL", "title": "Cam / Metal", "order": 60},
+    {"key": "KONSERVASYON_GENEL", "title": "Konservasyon Genel", "order": 70},
+    {"key": "KONSERVASYON_CAM", "title": "Konservasyon (Cam)", "order": 80},
 ]
 
 
@@ -214,6 +262,25 @@ FIELDS = [
     {"key": "grave.burial_type", "label": "Gömü Tipi", "data_type": "select", "bucket": "details", "section": "Mezar", "list_type": "BURIAL_TYPE"},
     {"key": "grave.direction", "label": "Yön", "data_type": "string", "bucket": "details", "section": "Mezar"},
     {"key": "grave.grave_artifacts", "label": "Mezar Buluntuları", "data_type": "text", "bucket": "details", "section": "Mezar"},
+
+    # --- CONSERVATION (general) ---
+    {"key": "conservation.lab_entry_date", "label": "Lab Giriş Tarihi", "data_type": "date", "bucket": "details", "section": "Konservasyon Genel Bilgiler"},
+    {"key": "conservation.lab_exit_date", "label": "Lab Çıkış Tarihi", "data_type": "date", "bucket": "details", "section": "Konservasyon Genel Bilgiler"},
+    {"key": "conservation.entry_piece_count", "label": "Giriş Parça Sayısı", "data_type": "int", "bucket": "details", "section": "Konservasyon Genel Bilgiler"},
+    {"key": "conservation.exit_piece_count", "label": "Çıkış Parça Sayısı", "data_type": "int", "bucket": "details", "section": "Konservasyon Genel Bilgiler"},
+    {"key": "conservation.conservator", "label": "Konservatör", "data_type": "string", "bucket": "details", "section": "Konservasyon Genel Bilgiler"},
+
+    # --- CONSERVATION (glass) ---
+    {"key": "conservation.glass.object_features", "label": "Objenin Özellikleri", "data_type": "multiselect", "bucket": "details", "section": "Objenin Özellikleri", "choices": GLASS_OBJECT_FEATURES},
+    {"key": "conservation.glass.current_state", "label": "Mevcut Durum", "data_type": "multiselect", "bucket": "details", "section": "Mevcut Durum", "choices": GLASS_CURRENT_STATE},
+    {"key": "conservation.glass.decay_lime", "label": "Kalker", "data_type": "choice", "bucket": "details", "section": "Bozulmalar", "choices": GLASS_LIME_DECAY},
+    {"key": "conservation.glass.decay_types", "label": "Bozulmalar", "data_type": "multiselect", "bucket": "details", "section": "Bozulmalar", "choices": GLASS_DECAY_TYPES},
+    {"key": "conservation.glass.clean_chemical", "label": "Kimyasal", "data_type": "multiselect", "bucket": "details", "section": "Temizlik", "choices": GLASS_CHEMICAL_CLEAN},
+    {"key": "conservation.glass.clean_mechanical", "label": "Mekanik", "data_type": "multiselect", "bucket": "details", "section": "Temizlik", "choices": GLASS_MECHANICAL_CLEAN},
+    {"key": "conservation.glass.adhesive", "label": "Yapıştırma", "data_type": "choice", "bucket": "details", "section": "Yapıştırma", "choices": GLASS_ADHESIVE},
+    {"key": "conservation.glass.consolidation", "label": "Sağlamlaştırma", "data_type": "choice", "bucket": "details", "section": "Sağlamlaştırma", "choices": GLASS_CONSOLIDATION},
+    {"key": "conservation.glass.notes", "label": "Açıklama", "data_type": "text", "bucket": "details", "section": "Açıklama"},
+    {"key": "conservation.glass.images", "label": "Görseller", "data_type": "file", "bucket": "details", "section": "Görseller"},
 ]
 
 
@@ -313,6 +380,25 @@ FORM_FIELD_MAP = {
         ("grave.direction", False),
         ("grave.grave_artifacts", False),
     ],
+    "KONSERVASYON_GENEL": [
+        ("conservation.lab_entry_date", False),
+        ("conservation.lab_exit_date", False),
+        ("conservation.entry_piece_count", False),
+        ("conservation.exit_piece_count", False),
+        ("conservation.conservator", False, True),
+    ],
+    "KONSERVASYON_CAM": [
+        ("conservation.glass.object_features", False),
+        ("conservation.glass.current_state", False),
+        ("conservation.glass.decay_lime", False),
+        ("conservation.glass.decay_types", False),
+        ("conservation.glass.clean_chemical", False),
+        ("conservation.glass.clean_mechanical", False),
+        ("conservation.glass.adhesive", False),
+        ("conservation.glass.consolidation", False),
+        ("conservation.glass.notes", False),
+        ("conservation.glass.images", False),
+    ],
 }
 
 
@@ -373,11 +459,16 @@ class Command(BaseCommand):
             form = forms_by_key.get(form_key)
             if not form:
                 continue
-            for i, (field_key, required) in enumerate(items, start=1):
+            for i, item in enumerate(items, start=1):
+                if len(item) == 3:
+                    field_key, required, readonly = item
+                else:
+                    field_key, required = item
+                    readonly = False
                 field = fields_by_key.get(field_key)
                 if not field:
                     continue
-                defaults = {"required": bool(required), "readonly": False, "order": i}
+                defaults = {"required": bool(required), "readonly": bool(readonly), "order": i}
                 if hasattr(ArtifactFormField, "is_active"):
                     defaults["is_active"] = True
                 ArtifactFormField.objects.update_or_create(
@@ -390,6 +481,7 @@ class Command(BaseCommand):
         metal, _ = MaterialGroup.objects.update_or_create(key="METAL", defaults={"title": "Metal", "is_active": True})
         ceramic, _ = MaterialGroup.objects.update_or_create(key="CERAMIC", defaults={"title": "Seramik", "is_active": True})
         grave, _ = MaterialGroup.objects.update_or_create(key="GRAVE", defaults={"title": "Mezar", "is_active": True})
+        glass, _ = MaterialGroup.objects.update_or_create(key="GLASS", defaults={"title": "Cam", "is_active": True})
 
         def map_form(group, form_key, order):
             f = forms_by_key.get(form_key)
@@ -405,6 +497,9 @@ class Command(BaseCommand):
 
         map_form(grave, "MEZAR", 10)
 
+        map_form(glass, "KONSERVASYON_GENEL", 10)
+        map_form(glass, "KONSERVASYON_CAM", 20)
+
         # Example aliases (edit in admin as needed)
         for name in ["Altın", "Gümüş", "Bronz", "Bakır", "Demir", "Metal"]:
             MaterialAlias.objects.update_or_create(name=name, defaults={"group": metal})
@@ -412,6 +507,8 @@ class Command(BaseCommand):
             MaterialAlias.objects.update_or_create(name=name, defaults={"group": ceramic})
         for name in ["Mezar"]:
             MaterialAlias.objects.update_or_create(name=name, defaults={"group": grave})
+        for name in ["Cam"]:
+            MaterialAlias.objects.update_or_create(name=name, defaults={"group": glass})
 
         # Lookup lists + items
         for key, items in LOOKUPS.items():
