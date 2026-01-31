@@ -125,6 +125,15 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                 .order_by("order", "form__order", "form__id")
             )
             forms = [mapping.form for mapping in form_maps]
+            if not forms:
+                fallback_keys = {
+                    "GLASS": ["KONSERVASYON_GENEL", "KONSERVASYON_CAM"],
+                }
+                keys = fallback_keys.get(group.key)
+                if keys:
+                    forms = list(
+                        ArtifactForm.objects.filter(key__in=keys, is_active=True).order_by("order", "id")
+                    )
             general_form = ArtifactForm.objects.filter(key="KONSERVASYON_GENEL", is_active=True).first()
             if general_form and all(f.key != general_form.key for f in forms):
                 forms.insert(0, general_form)
