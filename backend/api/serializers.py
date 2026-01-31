@@ -136,3 +136,17 @@ class ConservationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "artifact_full_no", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        artifact = attrs.get("artifact") or getattr(self.instance, "artifact", None)
+        if artifact is None:
+            return attrs
+
+        qs = Conservation.objects.filter(artifact=artifact)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {"artifact": "Bu buluntu için daha önce konservasyon kaydı oluşturulmuş."}
+            )
+        return attrs

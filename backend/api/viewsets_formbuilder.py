@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from django.utils.text import slugify
 from django.db.utils import OperationalError, ProgrammingError
 
-from .models import ArtifactForm, ArtifactFormField, MaterialAlias, MaterialGroup
+from .models import ArtifactForm, ArtifactFormField, MaterialAlias, MaterialGroup, MaterialFormMap
 from .serializers_formbuilder import ArtifactFormSerializer
 
 
@@ -119,10 +119,21 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
             if not group:
                 return Response({"group": None, "forms": []})
 
-            forms = list(
-                ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
-                .order_by("materialformmap__order", "order", "id")
+            form_maps = (
+                MaterialFormMap.objects.select_related("form")
+                .filter(group=group, form__is_active=True)
+                .order_by("order", "form__order", "form__id")
             )
+            forms = [mapping.form for mapping in form_maps]
+            if not forms:
+                fallback_keys = {
+                    "GLASS": ["KONSERVASYON_GENEL", "KONSERVASYON_CAM"],
+                }
+                keys = fallback_keys.get(group.key)
+                if keys:
+                    forms = list(
+                        ArtifactForm.objects.filter(key__in=keys, is_active=True).order_by("order", "id")
+                    )
             general_form = ArtifactForm.objects.filter(key="KONSERVASYON_GENEL", is_active=True).first()
             if general_form and all(f.key != general_form.key for f in forms):
                 forms.insert(0, general_form)

@@ -16,7 +16,7 @@ try:
         MaterialFormMap,
         MaterialGroup,
     )
-    from core.models import Artifact, MainCode, Report
+    from core.models import Artifact, MainCode, Report, Conservation
 except Exception:  # pragma: no cover
     # Fallback if project split modules later
     from api.models_formbuilder import (  # type: ignore
@@ -29,7 +29,7 @@ except Exception:  # pragma: no cover
         MaterialFormMap,
         MaterialGroup,
     )
-    from core.models import Artifact, MainCode, Report  # type: ignore
+    from core.models import Artifact, MainCode, Report, Conservation  # type: ignore
 
 
 DENSTY_CHOICES = [
@@ -555,12 +555,14 @@ class Command(BaseCommand):
                 )
 
             for main_code in MainCode.objects.all()[:3]:
+                material = "Cam" if main_code.code == "AAC" else ""
                 Artifact.objects.update_or_create(
                     main_code=main_code,
                     artifact_no=1,
                     defaults={
                         "artifact_date": main_code.created_at.date(),
                         "form_type": "GENEL",
+                        "production_material": material,
                     },
                 )
 
@@ -578,5 +580,27 @@ class Command(BaseCommand):
                     },
                 )
                 report.artifacts.set(sample_artifacts)
+
+            glass_artifact = Artifact.objects.filter(main_code__code="AAC", artifact_no=1).first()
+            if glass_artifact:
+                Conservation.objects.update_or_create(
+                    artifact=glass_artifact,
+                    defaults={
+                        "material": glass_artifact.production_material or "Cam",
+                        "form_keys": ["KONSERVASYON_GENEL", "KONSERVASYON_CAM"],
+                        "data": {
+                            "conservation.lab_entry_date": timezone.now().date().isoformat(),
+                            "conservation.entry_piece_count": 1,
+                            "conservation.glass.object_features": ["renkli"],
+                            "conservation.glass.current_state": ["kirik"],
+                            "conservation.glass.decay_types": ["matlasma"],
+                            "conservation.glass.clean_chemical": ["saf_su"],
+                            "conservation.glass.adhesive": "araldit_2020",
+                            "conservation.glass.notes": "Seed builder örnek konservasyon kaydı.",
+                        },
+                        "images": [],
+                        "conservator": "Seed Builder",
+                    },
+                )
 
         self.stdout.write(self.style.SUCCESS("Form Builder seed completed."))
