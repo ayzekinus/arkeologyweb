@@ -91,16 +91,34 @@ def _artifact_kv(artifact: Artifact) -> List[Tuple[str, str]]:
     return ordered
 
 
-def _conservation_label_map(conservation: Conservation) -> Dict[str, str]:
+def _conservation_meta_map(conservation: Conservation) -> Dict[str, Dict[str, Any]]:
     keys = list((conservation.data or {}).keys())
     if not keys:
         return {}
-    return {row["key"]: row["label"] for row in FieldDefinition.objects.filter(key__in=keys).values("key", "label")}
+    rows = FieldDefinition.objects.filter(key__in=keys).values("key", "label", "choices")
+    return {row["key"]: {"label": row["label"], "choices": row.get("choices") or []} for row in rows}
 
 
-def _conservation_kv(conservation: Conservation, label_map: Dict[str, str] | None = None) -> List[Tuple[str, str]]:
+def _format_conservation_value(value: Any, choices: List[Dict[str, Any]]) -> str:
+    def match_choice(val: Any) -> str:
+        if isinstance(val, dict):
+            if "label" in val:
+                return str(val["label"])
+            if "value" in val:
+                val = val["value"]
+        for choice in choices:
+            if choice.get("value") == val:
+                return str(choice.get("label", val))
+        return "" if val is None else str(val)
+
+    if isinstance(value, list):
+        return ", ".join(match_choice(item) for item in value)
+    return match_choice(value)
+
+
+def _conservation_kv(conservation: Conservation, meta_map: Dict[str, Dict[str, Any]] | None = None) -> List[Tuple[str, str]]:
     s = ConservationSerializer(conservation).data
-    label_map = label_map or {}
+    meta_map = meta_map or {}
 
     base: Dict[str, Any] = {
         "id": s.get("id"),
@@ -133,10 +151,13 @@ def _conservation_kv(conservation: Conservation, label_map: Dict[str, str] | Non
         if k in base:
             continue
         label = k
+        value = flat[k]
         if k.startswith("data."):
             data_key = k[5:]
-            label = label_map.get(data_key, k)
-        ordered.append((label, flat[k]))
+            meta = meta_map.get(data_key, {})
+            label = meta.get("label") or k
+            value = _format_conservation_value((conservation.data or {}).get(data_key), meta.get("choices", []))
+        ordered.append((label, value))
 
     return ordered
 
@@ -946,7 +967,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
         fmt = (request.query_params.get("export") or request.query_params.get("format") or "csv").lower().strip()
 
         filename_base = conservation.artifact.full_artifact_no or f"conservation-{conservation.pk}"
-        label_map = _conservation_label_map(conservation)
+        meta_map = _conservation_meta_map(conservation)
 
         if fmt == "pdf":
             base_font, bold_font = _register_dejavu_fonts()
@@ -954,7 +975,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             styles["Normal"].fontName = base_font
             styles["Heading2"].fontName = bold_font
 
-            rows = _conservation_kv(conservation, label_map)
+            rows = _conservation_kv(conservation, meta_map)
             data = [["Alan", "Değer"]] + [[k, v] for k, v in rows]
             table = Table(data, colWidths=[60 * mm, 120 * mm])
             table.setStyle(
@@ -999,7 +1020,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             sio = io.StringIO()
             w = csv.writer(sio)
             w.writerow(["field", "value"])
-            for k, v in _conservation_kv(conservation, label_map):
+            for k, v in _conservation_kv(conservation, meta_map):
                 w.writerow([k, v])
             data = sio.getvalue().encode("utf-8-sig")
             resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
@@ -1016,7 +1037,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             ws = wb.active
             ws.title = "Conservation"
             ws.append(["field", "value"])
-            for k, v in _conservation_kv(conservation, label_map):
+            for k, v in _conservation_kv(conservation, meta_map):
                 ws.append([k, v])
 
             bio = io.BytesIO()
