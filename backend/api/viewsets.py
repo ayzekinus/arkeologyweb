@@ -85,6 +85,44 @@ def _artifact_kv(artifact: Artifact) -> List[Tuple[str, str]]:
     return ordered
 
 
+def _conservation_kv(conservation: Conservation) -> List[Tuple[str, str]]:
+    s = ConservationSerializer(conservation).data
+
+    base: Dict[str, Any] = {
+        "id": s.get("id"),
+        "artifact": s.get("artifact"),
+        "artifact_full_no": s.get("artifact_full_no"),
+        "material": s.get("material"),
+        "form_keys": s.get("form_keys"),
+        "conservator": s.get("conservator"),
+        "created_at": s.get("created_at"),
+        "updated_at": s.get("updated_at"),
+    }
+
+    remainder = {
+        "data": s.get("data") or {},
+        "images": s.get("images") or [],
+    }
+
+    flat: Dict[str, str] = {}
+    for k, v in base.items():
+        flat[k] = "" if v is None else str(v)
+
+    for k, v in remainder.items():
+        _flatten(f"{k}.", v, flat)
+
+    ordered: List[Tuple[str, str]] = []
+    for k in base.keys():
+        ordered.append((k, flat.get(k, "")))
+
+    for k in sorted(flat.keys()):
+        if k in base:
+            continue
+        ordered.append((k, flat[k]))
+
+    return ordered
+
+
 def _register_dejavu_fonts() -> Tuple[str, str]:
     base_font = "Helvetica"
     bold_font = "Helvetica-Bold"
@@ -883,3 +921,56 @@ class ReportViewSet(viewsets.ModelViewSet):
 class ConservationViewSet(viewsets.ModelViewSet):
     queryset = Conservation.objects.select_related("artifact").all().order_by("-created_at")
     serializer_class = ConservationSerializer
+
+    @action(detail=True, methods=["get"], url_path="export")
+    def export(self, request, pk=None):
+        conservation = self.get_object()
+        fmt = (request.query_params.get("export") or request.query_params.get("format") or "csv").lower().strip()
+
+        filename_base = conservation.artifact.full_artifact_no or f"conservation-{conservation.pk}"
+
+        if fmt == "json":
+            payload = ConservationSerializer(conservation).data
+            data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+            resp = HttpResponse(data, content_type="application/json; charset=utf-8")
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.json"'
+            return resp
+
+        if fmt == "csv":
+            sio = io.StringIO()
+            w = csv.writer(sio)
+            w.writerow(["field", "value"])
+            for k, v in _conservation_kv(conservation):
+                w.writerow([k, v])
+            data = sio.getvalue().encode("utf-8-sig")
+            resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.csv"'
+            return resp
+
+        if fmt in ("xlsx", "excel"):
+            try:
+                from openpyxl import Workbook
+            except Exception:
+                return Response({"detail": "openpyxl yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Conservation"
+            ws.append(["field", "value"])
+            for k, v in _conservation_kv(conservation):
+                ws.append([k, v])
+
+            bio = io.BytesIO()
+            wb.save(bio)
+            bio.seek(0)
+            resp = HttpResponse(
+                bio.read(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.xlsx"'
+            return resp
+
+        return Response(
+            {"detail": "format desteklenmiyor. csv | xlsx | json"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
