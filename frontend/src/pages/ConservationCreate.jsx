@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { apiGet, apiPost } from "../api.js";
+import { useNavigate, useParams } from "react-router-dom";
+import { apiGet, apiPost, apiPut } from "../api.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -19,6 +19,8 @@ function buildQuery(params) {
 
 export default function ConservationCreate() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = Boolean(id);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [lookups, setLookups] = useState({});
@@ -30,6 +32,7 @@ export default function ConservationCreate() {
   const [formSchemas, setFormSchemas] = useState([]);
   const [formsLoading, setFormsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingLoaded, setEditingLoaded] = useState(false);
 
   const [searchFilters, setSearchFilters] = useState({
     q: "",
@@ -48,6 +51,23 @@ export default function ConservationCreate() {
       .then((data) => setLookups(data || {}))
       .catch(() => setLookups({}));
   }, []);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    setErr("");
+    setMsg("");
+    apiGet(`/api/conservations/${id}/`)
+      .then(async (data) => {
+        const artifactId = data?.artifact;
+        if (artifactId) {
+          const artifact = await apiGet(`/api/artifacts/${artifactId}/`);
+          setSelectedArtifact(artifact);
+        }
+        setFormData(data?.data || {});
+      })
+      .catch((e) => setErr(e.message || "Konservasyon kaydı alınamadı."))
+      .finally(() => setEditingLoaded(true));
+  }, [id, isEditing]);
 
   useEffect(() => {
     if (!selectedArtifact) {
@@ -113,6 +133,7 @@ export default function ConservationCreate() {
   }
 
   function onSelectArtifact(item) {
+    if (isEditing) return;
     setSelectedArtifact(item);
     setFormData({});
     setMsg("");
@@ -147,18 +168,24 @@ export default function ConservationCreate() {
       setSaving(true);
       const formKeys = formSchemas.map((schema) => schema?.form?.key).filter(Boolean);
       const images = collectImages(formData);
-      await apiPost("/api/conservations/", {
+      const payload = {
         artifact: selectedArtifact.id,
         material: selectedArtifact.production_material || "",
         form_keys: formKeys,
         data: formData,
         images,
         conservator: formData["conservation.conservator"] || "",
-      });
-      setMsg("Konservasyon kaydı oluşturuldu.");
+      };
+      if (isEditing) {
+        await apiPut(`/api/conservations/${id}/`, payload);
+        setMsg("Konservasyon kaydı güncellendi.");
+      } else {
+        await apiPost("/api/conservations/", payload);
+        setMsg("Konservasyon kaydı oluşturuldu.");
+      }
       setFormData({});
     } catch (e) {
-      setErr(e.message || "Konservasyon kaydı oluşturulamadı.");
+      setErr(e.message || "Konservasyon kaydı kaydedilemedi.");
     } finally {
       setSaving(false);
     }
@@ -231,8 +258,12 @@ export default function ConservationCreate() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Konservasyon Oluştur</h1>
-          <p className="mt-1 text-sm text-slate-600">Önce buluntu seçin, ardından ilgili konservasyon formunu doldurun.</p>
+          <h1 className="text-2xl font-extrabold">{isEditing ? "Konservasyon Güncelle" : "Konservasyon Oluştur"}</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {isEditing
+              ? "Seçili buluntu için konservasyon formunu güncelleyin."
+              : "Önce buluntu seçin, ardından ilgili konservasyon formunu doldurun."}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" type="button" onClick={() => navigate("/konservasyon/listele")}>
@@ -249,92 +280,109 @@ export default function ConservationCreate() {
           <CardTitle>Buluntu Seçimi</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">Genel Arama</label>
-              <div className="mt-1.5">
-                <Input
-                  value={searchFilters.q}
-                  onChange={(e) => setSearchFilters((prev) => ({ ...prev, q: e.target.value }))}
-                  placeholder="Buluntu no, anakod, dönem..."
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Anakod</label>
-              <div className="mt-1.5">
-                <Input
-                  value={searchFilters.main_code_code}
-                  onChange={(e) => setSearchFilters((prev) => ({ ...prev, main_code_code: e.target.value }))}
-                  placeholder="AAA"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Buluntu No</label>
-              <div className="mt-1.5">
-                <Input
-                  inputMode="numeric"
-                  value={searchFilters.artifact_no}
-                  onChange={(e) =>
-                    setSearchFilters((prev) => ({
-                      ...prev,
-                      artifact_no: e.target.value.replace(/\D/g, ""),
-                    }))
-                  }
-                  placeholder="1234"
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
-              <div className="mt-1.5">
-                <Input
-                  value={searchFilters.finding_place}
-                  onChange={(e) => setSearchFilters((prev) => ({ ...prev, finding_place: e.target.value }))}
-                  placeholder="Buluntu yeri girin"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-end">
-              <Button type="button" variant="secondary" onClick={onSearchArtifacts} disabled={searchLoading}>
-                {searchLoading ? "Aranıyor..." : "Buluntu Ara"}
-              </Button>
-            </div>
-          </div>
-
-          {searchError ? <div className="text-sm text-rose-700">{searchError}</div> : null}
-
-          <div className="grid gap-2">
-            {searchResults.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-                Arama sonuçları burada listelenir.
-              </div>
-            ) : (
-              searchResults.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 md:flex-row md:items-center md:justify-between"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      {item.full_artifact_no || `${item.main_code_code || ""}${item.artifact_no || ""}`}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {item.main_code_finding_place || "Buluntu yeri yok"} · {item.production_material || "Malzeme yok"}
-                    </div>
+          {isEditing ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              {selectedArtifact ? (
+                <>
+                  <div className="font-semibold">{selectedArtifact.full_artifact_no || "Buluntu"}</div>
+                  <div className="text-xs text-slate-500">
+                    Yapım Malzemesi: {selectedArtifact.production_material || "Belirtilmemiş"}
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => onSelectArtifact(item)}>
-                    Seç
+                </>
+              ) : (
+                <div>{editingLoaded ? "Buluntu bilgisi alınamadı." : "Buluntu bilgisi yükleniyor..."}</div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="md:col-span-2">
+                  <label className="text-sm font-semibold text-slate-700">Genel Arama</label>
+                  <div className="mt-1.5">
+                    <Input
+                      value={searchFilters.q}
+                      onChange={(e) => setSearchFilters((prev) => ({ ...prev, q: e.target.value }))}
+                      placeholder="Buluntu no, anakod, dönem..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Anakod</label>
+                  <div className="mt-1.5">
+                    <Input
+                      value={searchFilters.main_code_code}
+                      onChange={(e) => setSearchFilters((prev) => ({ ...prev, main_code_code: e.target.value }))}
+                      placeholder="AAA"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Buluntu No</label>
+                  <div className="mt-1.5">
+                    <Input
+                      inputMode="numeric"
+                      value={searchFilters.artifact_no}
+                      onChange={(e) =>
+                        setSearchFilters((prev) => ({
+                          ...prev,
+                          artifact_no: e.target.value.replace(/\D/g, ""),
+                        }))
+                      }
+                      placeholder="1234"
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm font-semibold text-slate-700">Buluntu Yeri</label>
+                  <div className="mt-1.5">
+                    <Input
+                      value={searchFilters.finding_place}
+                      onChange={(e) => setSearchFilters((prev) => ({ ...prev, finding_place: e.target.value }))}
+                      placeholder="Buluntu yeri girin"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-end">
+                  <Button type="button" variant="secondary" onClick={onSearchArtifacts} disabled={searchLoading}>
+                    {searchLoading ? "Aranıyor..." : "Buluntu Ara"}
                   </Button>
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+
+              {searchError ? <div className="text-sm text-rose-700">{searchError}</div> : null}
+
+              <div className="grid gap-2">
+                {searchResults.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Arama sonuçları burada listelenir.
+                  </div>
+                ) : (
+                  searchResults.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {item.full_artifact_no || `${item.main_code_code || ""}${item.artifact_no || ""}`}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {item.main_code_finding_place || "Buluntu yeri yok"} · {item.production_material || "Malzeme yok"}
+                        </div>
+                      </div>
+                      <Button type="button" variant="secondary" onClick={() => onSelectArtifact(item)}>
+                        Seç
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </CardBody>
       </Card>
 
@@ -379,7 +427,7 @@ export default function ConservationCreate() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="primary" type="button" onClick={onSave} disabled={saving}>
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                  {saving ? "Kaydediliyor..." : isEditing ? "Güncelle" : "Kaydet"}
                 </Button>
               </div>
             </>
