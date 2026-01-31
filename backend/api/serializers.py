@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import MainCode, Artifact, Report
+from core.models import MainCode, Artifact, Report, Conservation
 from .models import LookupItem
 
 
@@ -116,3 +116,23 @@ class ReportSerializer(serializers.ModelSerializer):
         if value < 1000 or value > 9999:
             raise serializers.ValidationError("Çalışma Yılı 4 haneli olmalıdır.")
         return value
+
+
+class ConservationSerializer(serializers.ModelSerializer):
+    artifact_full_no = serializers.CharField(source="artifact.full_artifact_no", read_only=True)
+
+    class Meta:
+        model = Conservation
+        fields = [
+            "id",
+            "artifact",
+            "artifact_full_no",
+            "material",
+            "form_keys",
+            "data",
+            "images",
+            "conservator",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "artifact_full_no", "created_at", "updated_at"]
