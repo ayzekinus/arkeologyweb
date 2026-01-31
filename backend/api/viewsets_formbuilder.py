@@ -120,8 +120,8 @@ class ArtifactFormViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response({"group": None, "forms": []})
 
             forms = list(
-                ArtifactForm.objects.filter(materialformmap__group=group, is_active=True)
-                .order_by("materialformmap__order", "order", "id")
+                ArtifactForm.objects.filter(form_maps__group=group, is_active=True)
+                .order_by("form_maps__order", "order", "id")
             )
             general_form = ArtifactForm.objects.filter(key="KONSERVASYON_GENEL", is_active=True).first()
             if general_form and all(f.key != general_form.key for f in forms):
