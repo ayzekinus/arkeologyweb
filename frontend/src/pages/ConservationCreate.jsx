@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPost, apiPut } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
+import SchemaFields from "../components/SchemaFields.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
-import SchemaFields from "../components/SchemaFields.jsx";
 
 function buildQuery(params) {
   const qs = new URLSearchParams();
@@ -21,8 +23,7 @@ export default function ConservationCreate() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = Boolean(id);
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
   const [lookups, setLookups] = useState({});
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -54,8 +55,7 @@ export default function ConservationCreate() {
 
   useEffect(() => {
     if (!isEditing) return;
-    setErr("");
-    setMsg("");
+    hideAlert();
     apiGet(`/api/conservations/${id}/`)
       .then(async (data) => {
         const artifactId = data?.artifact;
@@ -65,9 +65,9 @@ export default function ConservationCreate() {
         }
         setFormData(data?.data || {});
       })
-      .catch((e) => setErr(e.message || "Konservasyon kaydı alınamadı."))
+      .catch((e) => showAlert({ type: "error", message: e.message || "Konservasyon kaydı alınamadı." }))
       .finally(() => setEditingLoaded(true));
-  }, [id, isEditing]);
+  }, [hideAlert, id, isEditing, showAlert]);
 
   useEffect(() => {
     if (!selectedArtifact) {
@@ -95,9 +95,9 @@ export default function ConservationCreate() {
         );
         setFormSchemas(schemas);
       })
-      .catch((e) => setErr(e.message || "Konservasyon formları alınamadı."))
+      .catch((e) => showAlert({ type: "error", message: e.message || "Konservasyon formları alınamadı." }))
       .finally(() => setFormsLoading(false));
-  }, [selectedArtifact]);
+  }, [selectedArtifact, showAlert]);
 
   useEffect(() => {
     if (!formSchemas.length) return;
@@ -136,8 +136,7 @@ export default function ConservationCreate() {
     if (isEditing) return;
     setSelectedArtifact(item);
     setFormData({});
-    setMsg("");
-    setErr("");
+    hideAlert();
   }
 
   function onFieldChange(key, value) {
@@ -159,11 +158,10 @@ export default function ConservationCreate() {
 
   async function onSave() {
     if (!selectedArtifact) {
-      setErr("Lütfen önce buluntu seçin.");
+      showAlert({ type: "error", message: "Lütfen önce buluntu seçin." });
       return;
     }
-    setErr("");
-    setMsg("");
+    hideAlert();
     try {
       setSaving(true);
       const formKeys = formSchemas.map((schema) => schema?.form?.key).filter(Boolean);
@@ -178,14 +176,14 @@ export default function ConservationCreate() {
       };
       if (isEditing) {
         await apiPut(`/api/conservations/${id}/`, payload);
-        setMsg("Konservasyon kaydı güncellendi.");
+        showAlert({ type: "success", message: "Konservasyon kaydı güncellendi." });
       } else {
         await apiPost("/api/conservations/", payload);
-        setMsg("Konservasyon kaydı oluşturuldu.");
+        showAlert({ type: "success", message: "Konservasyon kaydı oluşturuldu." });
       }
       setFormData({});
     } catch (e) {
-      setErr(e.message || "Konservasyon kaydı kaydedilemedi.");
+      showAlert({ type: "error", message: e.message || "Konservasyon kaydı kaydedilemedi." });
     } finally {
       setSaving(false);
     }
@@ -271,9 +269,6 @@ export default function ConservationCreate() {
           </Button>
         </div>
       </div>
-
-      {msg ? <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{msg}</div> : null}
-      {err ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</div> : null}
 
       <Card>
         <CardHeader>
@@ -434,6 +429,8 @@ export default function ConservationCreate() {
           )}
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
     </div>
   );
 }

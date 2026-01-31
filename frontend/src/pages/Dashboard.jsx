@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { apiGet } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 
 export default function Dashboard() {
   const [health, setHealth] = useState(null);
   const [error, setError] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   useEffect(() => {
     apiGet("/api/health/")
       .then(setHealth)
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => {
+        setError(e.message);
+        showAlert({ type: "error", message: e.message || "Servis durumu alınamadı." });
+      });
+  }, [showAlert]);
 
   return (
     <div className="space-y-4">
@@ -27,9 +33,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardBody>
           {error ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </div>
+            <div className="text-sm text-slate-600">Servis durumu alınamadı.</div>
           ) : !health ? (
             <div className="text-sm text-slate-600">Yükleniyor...</div>
           ) : (
@@ -39,6 +43,8 @@ export default function Dashboard() {
           )}
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
     </div>
   );
 }

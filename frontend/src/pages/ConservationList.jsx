@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiDelete, apiGet } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
 import ConservationDetailModal from "../components/ConservationDetailModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -11,16 +13,14 @@ export default function ConservationList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
-  const [err, setErr] = useState("");
-  const [msg, setMsg] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState(null);
 
   async function load(nextPage = page) {
-    setErr("");
-    setMsg("");
+    hideAlert();
     const params = new URLSearchParams();
     params.set("ordering", "-created_at");
     params.set("page", String(nextPage));
@@ -32,12 +32,14 @@ export default function ConservationList() {
   }
 
   useEffect(() => {
-    load(1).then(() => setPage(1)).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(1)
+      .then(() => setPage(1))
+      .catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(page).catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize]);
 
@@ -48,14 +50,13 @@ export default function ConservationList() {
 
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
-    setMsg("");
-    setErr("");
+    hideAlert();
     try {
       await apiDelete(`/api/conservations/${id}/`);
-      setMsg("Kayıt silindi.");
       await load(page);
+      showAlert({ type: "success", message: "Kayıt silindi." });
     } catch (e) {
-      setErr(e.message || "Silme başarısız.");
+      showAlert({ type: "error", message: e.message || "Silme başarısız." });
     }
   }
 
@@ -70,13 +71,14 @@ export default function ConservationList() {
   }
 
   function onExport(id, format, filenameBase) {
+    hideAlert();
     if (!id) {
-      setErr("Export için kayıt id bulunamadı.");
+      showAlert({ type: "error", message: "Export için kayıt id bulunamadı." });
       return;
     }
     const url = `/api/conservations/${id}/export/?format=${encodeURIComponent(format)}`;
     download(url);
-    setMsg(`Export başlatıldı: ${(filenameBase || "conservation")}.${format}`);
+    showAlert({ type: "info", message: `Export başlatıldı: ${(filenameBase || "conservation")}.${format}` });
   }
 
   return (
@@ -94,8 +96,7 @@ export default function ConservationList() {
         </div>
       </div>
 
-      {err ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</div> : null}
-      {msg ? <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{msg}</div> : null}
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

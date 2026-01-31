@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
 import SchemaFields from "../components/SchemaFields.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { DETAILS_SCHEMA, MEASUREMENT_SCHEMA } from "../schemas/artifactSchemas.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
@@ -35,7 +37,7 @@ export default function Buluntu() {
   const [lookups, setLookups] = useState({});
 
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState({ type: "", text: "" });
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   const [form, setForm] = useState({
     main_code: "",
@@ -244,7 +246,7 @@ export default function Buluntu() {
           setForm((p) => ({ ...p, form_type: p.form_type || "" }));
         }
       } catch (e) {
-        setMsg({ type: "error", text: e.message || "Veriler yüklenemedi." });
+        showAlert({ type: "error", message: e.message || "Veriler yüklenemedi." });
       }
     })();
   }, []);
@@ -263,16 +265,16 @@ export default function Buluntu() {
 
   async function onSave(e) {
     e.preventDefault();
-    setMsg({ type: "", text: "" });
+    hideAlert();
 
     const mcId = toInt(form.main_code);
     const no = toInt(form.artifact_no);
-    if (!mcId) return setMsg({ type: "error", text: "Anakod zorunludur." });
-    if (!no) return setMsg({ type: "error", text: "Buluntu No zorunludur." });
-    if (!form.artifact_date) return setMsg({ type: "error", text: "Buluntu Tarihi zorunludur." });
-    if (!form.form_type) return setMsg({ type: "error", text: "Form zorunludur." });
-    if (!form.form_object) return setMsg({ type: "error", text: "Form/Obje zorunludur." });
-    if (!form.production_material) return setMsg({ type: "error", text: "Yapım Malzemesi zorunludur." });
+    if (!mcId) return showAlert({ type: "error", message: "Anakod zorunludur." });
+    if (!no) return showAlert({ type: "error", message: "Buluntu No zorunludur." });
+    if (!form.artifact_date) return showAlert({ type: "error", message: "Buluntu Tarihi zorunludur." });
+    if (!form.form_type) return showAlert({ type: "error", message: "Form zorunludur." });
+    if (!form.form_object) return showAlert({ type: "error", message: "Form/Obje zorunludur." });
+    if (!form.production_material) return showAlert({ type: "error", message: "Yapım Malzemesi zorunludur." });
 
     setLoading(true);
     try {
@@ -315,7 +317,7 @@ export default function Buluntu() {
       const saved = await apiPost("/api/artifacts/", payload);
       const fullNo =
         saved?.full_artifact_no || `${saved?.main_code_code || ""}${formatArtifactNo(saved?.artifact_no || no)}`;
-      setMsg({ type: "success", text: `${fullNo} buluntu numarası başarıyla kayıt edildi.` });
+      showAlert({ type: "success", message: `${fullNo} buluntu numarası başarıyla kayıt edildi.` });
 
       // Reset most fields; keep Anakod + Form for rapid data entry
       setForm((p) => ({
@@ -336,7 +338,7 @@ export default function Buluntu() {
         drawings: [],
       }));
     } catch (e2) {
-      setMsg({ type: "error", text: e2.message || "Kayıt başarısız." });
+      showAlert({ type: "error", message: e2.message || "Kayıt başarısız." });
     } finally {
       setLoading(false);
     }
@@ -347,16 +349,6 @@ export default function Buluntu() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Buluntu Oluştur</h1>
       </div>
-
-      {msg.text ? (
-        <div
-          className={`rounded-xl border p-3 text-sm ${
-            msg.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"
-          }`}
-        >
-          {msg.text}
-        </div>
-      ) : null}
 
       <form onSubmit={onSave} className="space-y-6">
         <Card>
@@ -595,6 +587,8 @@ export default function Buluntu() {
           </Button>
         </div>
       </form>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -104,8 +106,7 @@ export default function ReportCreate() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("id");
   const isView = searchParams.get("view") === "1";
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   const [mainCodes, setMainCodes] = useState([]);
   const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
@@ -153,14 +154,14 @@ export default function ReportCreate() {
   useEffect(() => {
     apiGet("/api/main-codes/?page_size=500")
       .then((data) => setMainCodes((data.results || data) ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
-  }, []);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yeri listesi alınamadı." }));
+  }, [showAlert]);
 
   useEffect(() => {
     apiGet("/api/lookups/?keys=FINDING_PLACE")
       .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
-  }, []);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yeri listesi alınamadı." }));
+  }, [showAlert]);
 
   useEffect(() => {
     if (!editId) return;
@@ -187,8 +188,8 @@ export default function ReportCreate() {
           setSelectedArtifacts([]);
         }
       })
-      .catch((e) => setErr(e.message || "Rapor yüklenemedi."));
-  }, [editId]);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Rapor yüklenemedi." }));
+  }, [editId, showAlert]);
 
   async function onSearchArtifacts() {
     setSearchError("");
@@ -233,7 +234,7 @@ export default function ReportCreate() {
       );
       setGallery((prev) => [...prev, ...next]);
     } catch (e2) {
-      setErr(e2.message || "Fotoğraflar yüklenemedi.");
+      showAlert({ type: "error", message: e2.message || "Fotoğraflar yüklenemedi." });
     } finally {
       e.target.value = "";
     }
@@ -246,8 +247,7 @@ export default function ReportCreate() {
   async function onSubmit(e) {
     e.preventDefault();
     if (isReadOnly) return;
-    setErr("");
-    setMsg("");
+    hideAlert();
     try {
       const payload = {
         report_type: form.report_type,
@@ -262,10 +262,10 @@ export default function ReportCreate() {
       };
       if (editId) {
         await apiPatch(`/api/reports/${editId}/`, payload);
-        setMsg("Rapor güncellendi.");
+        showAlert({ type: "success", message: "Rapor güncellendi." });
       } else {
         await apiPost("/api/reports/", payload);
-        setMsg("Rapor kaydedildi.");
+        showAlert({ type: "success", message: "Rapor kaydedildi." });
         setForm((prev) => ({
           ...prev,
           report_type: "",
@@ -279,7 +279,7 @@ export default function ReportCreate() {
         setGallery([]);
       }
     } catch (e3) {
-      setErr(e3.message || "Rapor kaydedilemedi.");
+      showAlert({ type: "error", message: e3.message || "Rapor kaydedilemedi." });
     }
   }
 
@@ -304,8 +304,7 @@ export default function ReportCreate() {
         </div>
       </div>
 
-      {msg ? <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{msg}</div> : null}
-      {err ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</div> : null}
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
 
       <Card>
         <CardHeader>
