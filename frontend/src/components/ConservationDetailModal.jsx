@@ -121,7 +121,7 @@ export default function ConservationDetailModal({ open, onClose, conservation })
                 {dataEntries.map(([key, value]) => (
                   <KeyValueRow
                     key={key}
-                    label={fieldLabels[key] ? `${fieldLabels[key]} (${key})` : key}
+                    label={fieldLabels[key] || key}
                     value={formatValue(value)}
                   />
                 ))}
