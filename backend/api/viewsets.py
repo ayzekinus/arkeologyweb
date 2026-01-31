@@ -972,21 +972,42 @@ class ConservationViewSet(viewsets.ModelViewSet):
         if fmt == "pdf":
             base_font, bold_font = _register_dejavu_fonts()
             styles = getSampleStyleSheet()
-            styles["Normal"].fontName = base_font
-            styles["Heading2"].fontName = bold_font
+            normal = styles["BodyText"]
+            normal.fontName = base_font
+            normal.fontSize = 9
+            normal.leading = 12
+
+            title_style = ParagraphStyle(
+                "title",
+                parent=styles["Title"],
+                fontName=bold_font,
+                textColor=colors.HexColor("#0f172a"),
+            )
+
+            key_style = ParagraphStyle(
+                "key",
+                parent=normal,
+                fontName=bold_font,
+                textColor=colors.HexColor("#0f172a"),
+            )
 
             rows = _conservation_kv(conservation, meta_map)
-            data = [["Alan", "Değer"]] + [[k, v] for k, v in rows]
-            table = Table(data, colWidths=[60 * mm, 120 * mm])
-            table.setStyle(
-                TableStyle(
+            data = [[Paragraph("Alan", key_style), Paragraph("Değer", key_style)]]
+            for k, v in rows:
+                v = ("" if v is None else str(v)).replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br/>")
+                data.append([Paragraph(str(k), key_style), Paragraph(v, normal)])
+
+            table = Table(
+                data,
+                colWidths=[60 * mm, 120 * mm],
+                style=TableStyle(
                     [
                         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
                         ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0f172a")),
                         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5f5")),
                         ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ]
-                )
+                ),
             )
 
             bio = io.BytesIO()
@@ -999,7 +1020,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
                 bottomMargin=16 * mm,
             )
             story = [
-                Paragraph(f"Konservasyon Export: {filename_base}", styles["Heading2"]),
+                Paragraph("Konservasyon", title_style),
                 Spacer(1, 6 * mm),
                 table,
             ]
