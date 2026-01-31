@@ -11,6 +11,11 @@ from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from core.models import Artifact, MainCode, Report, Conservation
 from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer, ConservationSerializer
@@ -929,6 +934,46 @@ class ConservationViewSet(viewsets.ModelViewSet):
 
         filename_base = conservation.artifact.full_artifact_no or f"conservation-{conservation.pk}"
 
+        if fmt == "pdf":
+            base_font, bold_font = _register_dejavu_fonts()
+            styles = getSampleStyleSheet()
+            styles["Normal"].fontName = base_font
+            styles["Heading2"].fontName = bold_font
+
+            rows = _conservation_kv(conservation)
+            data = [["Alan", "Değer"]] + [[k, v] for k, v in rows]
+            table = Table(data, colWidths=[60 * mm, 120 * mm])
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0f172a")),
+                        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5f5")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ]
+                )
+            )
+
+            bio = io.BytesIO()
+            doc = SimpleDocTemplate(
+                bio,
+                pagesize=A4,
+                leftMargin=16 * mm,
+                rightMargin=16 * mm,
+                topMargin=16 * mm,
+                bottomMargin=16 * mm,
+            )
+            story = [
+                Paragraph(f"Konservasyon Export: {filename_base}", styles["Heading2"]),
+                Spacer(1, 6 * mm),
+                table,
+            ]
+            doc.build(story)
+            bio.seek(0)
+            resp = HttpResponse(bio.read(), content_type="application/pdf")
+            resp["Content-Disposition"] = f'attachment; filename="{filename_base}.pdf"'
+            return resp
+
         if fmt == "json":
             payload = ConservationSerializer(conservation).data
             data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -971,6 +1016,6 @@ class ConservationViewSet(viewsets.ModelViewSet):
             return resp
 
         return Response(
-            {"detail": "format desteklenmiyor. csv | xlsx | json"},
+            {"detail": "format desteklenmiyor. csv | xlsx | json | pdf"},
             status=status.HTTP_400_BAD_REQUEST,
         )

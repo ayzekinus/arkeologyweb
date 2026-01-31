@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiDelete, apiGet } from "../api.js";
 import ConservationDetailModal from "../components/ConservationDetailModal.jsx";
-import { IconCsv, IconDelete, IconEdit, IconView, IconXls } from "../ui/Icons.jsx";
+import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Pagination from "../ui/Pagination.jsx";
@@ -181,6 +181,15 @@ export default function ConservationList() {
                       </td>
                       <td className="border-b border-slate-100 px-2 py-2">
                         <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            className="py-1.5"
+                            onClick={() => onExport(row.id, "pdf", row.artifact_full_no)}
+                            aria-label="PDF"
+                            title="PDF"
+                          >
+                            <IconPdf />
+                          </Button>
                           <Button
                             variant="secondary"
                             className="py-1.5"
