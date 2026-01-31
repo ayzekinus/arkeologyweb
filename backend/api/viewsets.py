@@ -11,6 +11,11 @@ from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from core.models import Artifact, MainCode, Report, Conservation
 from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer, ConservationSerializer
