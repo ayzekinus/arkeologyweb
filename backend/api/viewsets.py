@@ -12,8 +12,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from core.models import Artifact, MainCode, Report
-from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer
+from core.models import Artifact, MainCode, Report, Conservation
+from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer, ConservationSerializer
 
 
 def _flatten(prefix: str, obj: Any, out: Dict[str, str]) -> None:
@@ -878,3 +878,8 @@ class ReportViewSet(viewsets.ModelViewSet):
             qs = qs.order_by(ordering)
 
         return qs
+
+
+class ConservationViewSet(viewsets.ModelViewSet):
+    queryset = Conservation.objects.select_related("artifact").all().order_by("-created_at")
+    serializer_class = ConservationSerializer

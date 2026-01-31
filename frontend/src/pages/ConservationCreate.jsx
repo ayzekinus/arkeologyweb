@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiGet } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
@@ -29,6 +29,7 @@ export default function ConservationCreate() {
   const [formData, setFormData] = useState({});
   const [formSchemas, setFormSchemas] = useState([]);
   const [formsLoading, setFormsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [searchFilters, setSearchFilters] = useState({
     q: "",
@@ -120,6 +121,47 @@ export default function ConservationCreate() {
 
   function onFieldChange(key, value) {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function collectImages(payload) {
+    const images = [];
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (!key.toLowerCase().includes("image")) return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (item?.url) images.push(item);
+        });
+      }
+    });
+    return images;
+  }
+
+  async function onSave() {
+    if (!selectedArtifact) {
+      setErr("Lütfen önce buluntu seçin.");
+      return;
+    }
+    setErr("");
+    setMsg("");
+    try {
+      setSaving(true);
+      const formKeys = formSchemas.map((schema) => schema?.form?.key).filter(Boolean);
+      const images = collectImages(formData);
+      await apiPost("/api/conservations/", {
+        artifact: selectedArtifact.id,
+        material: selectedArtifact.production_material || "",
+        form_keys: formKeys,
+        data: formData,
+        images,
+        conservator: formData["conservation.conservator"] || "",
+      });
+      setMsg("Konservasyon kaydı oluşturuldu.");
+      setFormData({});
+    } catch (e) {
+      setErr(e.message || "Konservasyon kaydı oluşturulamadı.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function lookupOptions(key) {
@@ -334,6 +376,12 @@ export default function ConservationCreate() {
                   />
                 ))
               )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="primary" type="button" onClick={onSave} disabled={saving}>
+                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                </Button>
+              </div>
             </>
           )}
         </CardBody>
