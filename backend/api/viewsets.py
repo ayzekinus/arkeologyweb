@@ -19,6 +19,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 
 from core.models import Artifact, MainCode, Report, Conservation
 from .serializers import ArtifactSerializer, MainCodeSerializer, ReportSerializer, ConservationSerializer
+from .models import FieldDefinition
 
 
 def _flatten(prefix: str, obj: Any, out: Dict[str, str]) -> None:
@@ -90,8 +91,16 @@ def _artifact_kv(artifact: Artifact) -> List[Tuple[str, str]]:
     return ordered
 
 
-def _conservation_kv(conservation: Conservation) -> List[Tuple[str, str]]:
+def _conservation_label_map(conservation: Conservation) -> Dict[str, str]:
+    keys = list((conservation.data or {}).keys())
+    if not keys:
+        return {}
+    return {row["key"]: row["label"] for row in FieldDefinition.objects.filter(key__in=keys).values("key", "label")}
+
+
+def _conservation_kv(conservation: Conservation, label_map: Dict[str, str] | None = None) -> List[Tuple[str, str]]:
     s = ConservationSerializer(conservation).data
+    label_map = label_map or {}
 
     base: Dict[str, Any] = {
         "id": s.get("id"),
@@ -123,7 +132,11 @@ def _conservation_kv(conservation: Conservation) -> List[Tuple[str, str]]:
     for k in sorted(flat.keys()):
         if k in base:
             continue
-        ordered.append((k, flat[k]))
+        label = k
+        if k.startswith("data."):
+            data_key = k[5:]
+            label = label_map.get(data_key, k)
+        ordered.append((label, flat[k]))
 
     return ordered
 
@@ -933,6 +946,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
         fmt = (request.query_params.get("export") or request.query_params.get("format") or "csv").lower().strip()
 
         filename_base = conservation.artifact.full_artifact_no or f"conservation-{conservation.pk}"
+        label_map = _conservation_label_map(conservation)
 
         if fmt == "pdf":
             base_font, bold_font = _register_dejavu_fonts()
@@ -940,7 +954,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             styles["Normal"].fontName = base_font
             styles["Heading2"].fontName = bold_font
 
-            rows = _conservation_kv(conservation)
+            rows = _conservation_kv(conservation, label_map)
             data = [["Alan", "Değer"]] + [[k, v] for k, v in rows]
             table = Table(data, colWidths=[60 * mm, 120 * mm])
             table.setStyle(
@@ -985,7 +999,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             sio = io.StringIO()
             w = csv.writer(sio)
             w.writerow(["field", "value"])
-            for k, v in _conservation_kv(conservation):
+            for k, v in _conservation_kv(conservation, label_map):
                 w.writerow([k, v])
             data = sio.getvalue().encode("utf-8-sig")
             resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
@@ -1002,7 +1016,7 @@ class ConservationViewSet(viewsets.ModelViewSet):
             ws = wb.active
             ws.title = "Conservation"
             ws.append(["field", "value"])
-            for k, v in _conservation_kv(conservation):
+            for k, v in _conservation_kv(conservation, label_map):
                 ws.append([k, v])
 
             bio = io.BytesIO()
