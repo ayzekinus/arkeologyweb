@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiGet, apiPost, apiPatch } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
 import SchemaFields from "../components/SchemaFields.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { DETAILS_SCHEMA } from "../schemas/artifactSchemas.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
@@ -34,8 +36,7 @@ export default function BuluntuCreate() {
   const [forms, setForms] = useState([]);
   const [lookups, setLookups] = useState({});
 
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   const [uniqueHint, setUniqueHint] = useState("");
   const [uniqueError, setUniqueError] = useState(false);
@@ -121,16 +122,16 @@ export default function BuluntuCreate() {
 
   useEffect(() => {
     Promise.all([loadMainCodes(), loadForms(), loadLookups()]).catch((e) =>
-      setErr(e.message || "Veriler yüklenemedi.")
+      showAlert({ type: "error", message: e.message || "Veriler yüklenemedi." })
     );
-  }, []);
+  }, [showAlert]);
 
   useEffect(() => {
     if (!editId) {
       setEditingId(null);
       return;
     }
-    loadArtifactForEdit(editId).catch((e) => setErr(e.message || "Buluntu yüklenemedi."));
+    loadArtifactForEdit(editId).catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
@@ -270,16 +271,15 @@ export default function BuluntuCreate() {
 
   async function onSubmit(e) {
     e.preventDefault();
-    setMsg("");
-    setErr("");
+    hideAlert();
 
     const no = formatArtifactNo(form.artifact_no);
     if (!form.main_code || !no || !form.artifact_date) {
-      setErr("Anakod, Buluntu No ve Buluntu Tarihi zorunludur.");
+      showAlert({ type: "error", message: "Anakod, Buluntu No ve Buluntu Tarihi zorunludur." });
       return;
     }
     if (uniqueError) {
-      setErr("Buluntu No benzersiz olmalıdır. Lütfen farklı bir numara deneyin.");
+      showAlert({ type: "error", message: "Buluntu No benzersiz olmalıdır. Lütfen farklı bir numara deneyin." });
       return;
     }
 
@@ -296,10 +296,10 @@ export default function BuluntuCreate() {
       let saved = null;
       if (editingId) {
         saved = await apiPatch(`/api/artifacts/${editingId}/`, payload);
-        setMsg(`${saved.full_artifact_no} buluntu başarı ile güncellendi.`);
+        showAlert({ type: "success", message: `${saved.full_artifact_no} buluntu başarı ile güncellendi.` });
       } else {
         saved = await apiPost("/api/artifacts/", payload);
-        setMsg(`${saved.full_artifact_no} buluntu başarı ile kaydedildi.`);
+        showAlert({ type: "success", message: `${saved.full_artifact_no} buluntu başarı ile kaydedildi.` });
       }
 
       // reset (keep main_code)
@@ -331,7 +331,7 @@ export default function BuluntuCreate() {
         navigate("/buluntu/listele");
       }
     } catch (e3) {
-      setErr(e3.message || "İşlem başarısız.");
+      showAlert({ type: "error", message: e3.message || "İşlem başarısız." });
     }
   }
 
@@ -626,22 +626,12 @@ export default function BuluntuCreate() {
               <Button variant="primary" type="submit">
                 {editingId ? "Buluntu Güncelle" : "Buluntu Kaydet"}
               </Button>
-
-              {msg ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  {msg}
-                </div>
-              ) : null}
-
-              {err ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {err}
-                </div>
-              ) : null}
             </div>
           </form>
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
     </div>
   );
 }

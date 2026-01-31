@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiDelete } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
 import MainCodeDetailModal from "../components/MainCodeDetailModal.jsx";
 import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -27,8 +29,7 @@ export default function AnakodList() {
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
 
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -45,7 +46,7 @@ export default function AnakodList() {
   const [filterDraft, setFilterDraft] = useState({ ...filters });
 
   async function load(nextPage = page) {
-    setErr("");
+    hideAlert();
     const q = buildQuery({
       ...filters,
       ordering,
@@ -59,12 +60,14 @@ export default function AnakodList() {
   }
 
   useEffect(() => {
-    load(1).then(() => setPage(1)).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(1)
+      .then(() => setPage(1))
+      .catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(page).catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, ordering, filters]);
 
@@ -98,14 +101,13 @@ export default function AnakodList() {
 
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
-    setMsg("");
-    setErr("");
+    hideAlert();
     try {
       await apiDelete(`/api/main-codes/${id}/`);
-      setMsg("Kayıt silindi.");
       await load(page);
+      showAlert({ type: "success", message: "Kayıt silindi." });
     } catch (e) {
-      setErr(e.message || "Silme başarısız.");
+      showAlert({ type: "error", message: e.message || "Silme başarısız." });
     }
   }
 
@@ -241,19 +243,10 @@ export default function AnakodList() {
 
           <Pagination page={page} pageSize={pageSize} count={count} onPageChange={(p) => setPage(Math.max(1, p))} />
 
-          {msg ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {msg}
-            </div>
-          ) : null}
-
-          {err ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {err}
-            </div>
-          ) : null}
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
 
       <MainCodeDetailModal
         open={detailOpen}

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -13,8 +15,7 @@ export default function AnakodCreate() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("id");
 
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
   const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
   const [editingCode, setEditingCode] = useState("");
 
@@ -31,8 +32,8 @@ export default function AnakodCreate() {
   useEffect(() => {
     apiGet("/api/lookups/?keys=FINDING_PLACE")
       .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
-  }, []);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yeri listesi alınamadı." }));
+  }, [showAlert]);
 
   useEffect(() => {
     if (!editId) {
@@ -52,26 +53,25 @@ export default function AnakodCreate() {
           gis: data.gis || "",
         });
       })
-      .catch((e) => setErr(e.message || "Anakod yüklenemedi."));
-  }, [editId]);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Anakod yüklenemedi." }));
+  }, [editId, showAlert]);
 
   async function onSubmit(e) {
     e.preventDefault();
-    setMsg("");
-    setErr("");
+    hideAlert();
 
     if (!String(form.finding_place || "").trim()) {
-      setErr("Buluntu Yeri zorunludur.");
+      showAlert({ type: "error", message: "Buluntu Yeri zorunludur." });
       return;
     }
 
     try {
       if (editId) {
         await apiPatch(`/api/main-codes/${editId}/`, form);
-        setMsg("Anakod başarı ile güncellendi.");
+        showAlert({ type: "success", message: "Anakod başarı ile güncellendi." });
       } else {
         const saved = await apiPost("/api/main-codes/", form);
-        setMsg(`Anakod ${saved.code} başarı ile oluşturuldu.`);
+        showAlert({ type: "success", message: `Anakod ${saved.code} başarı ile oluşturuldu.` });
         // Clear all but keep UX simple
         setForm({
           finding_place: "",
@@ -84,7 +84,7 @@ export default function AnakodCreate() {
         });
       }
     } catch (e2) {
-      setErr(e2.message || "İşlem başarısız.");
+      showAlert({ type: "error", message: e2.message || "İşlem başarısız." });
     }
   }
 
@@ -191,21 +191,12 @@ export default function AnakodCreate() {
                 </Button>
               ) : null}
 
-              {msg ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  {msg}
-                </div>
-              ) : null}
-
-              {err ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {err}
-                </div>
-              ) : null}
             </div>
           </form>
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
     </div>
   );
 }

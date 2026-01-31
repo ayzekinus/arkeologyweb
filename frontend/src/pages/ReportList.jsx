@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiDelete, apiGet } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 import { IconCsv, IconDelete, IconEdit, IconPdf, IconView, IconXls } from "../ui/Icons.jsx";
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -46,8 +48,7 @@ export default function ReportList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
   const [findingPlaceOptions, setFindingPlaceOptions] = useState([]);
 
   const [page, setPage] = useState(1);
@@ -64,7 +65,7 @@ export default function ReportList() {
   const [filterDraft, setFilterDraft] = useState({ ...filters });
 
   async function load(nextPage = page) {
-    setErr("");
+    hideAlert();
     const q = buildQuery({
       ...filters,
       ordering,
@@ -78,19 +79,21 @@ export default function ReportList() {
   }
 
   useEffect(() => {
-    load(1).then(() => setPage(1)).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(1)
+      .then(() => setPage(1))
+      .catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+    load(page).catch((e) => showAlert({ type: "error", message: e.message || "Liste yüklenemedi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, ordering, filters]);
 
   useEffect(() => {
     apiGet("/api/lookups/?keys=FINDING_PLACE")
       .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
+      .catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yeri listesi alınamadı." }));
   }, []);
 
   function applyFilters() {
@@ -112,22 +115,24 @@ export default function ReportList() {
 
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
+    hideAlert();
     try {
       await apiDelete(`/api/reports/${id}/`);
-      setMsg("Rapor silindi.");
-      load(page).catch((e) => setErr(e.message || "Liste yüklenemedi."));
+      await load(page);
+      showAlert({ type: "success", message: "Rapor silindi." });
     } catch (e) {
-      setErr(e.message || "Silme başarısız.");
+      showAlert({ type: "error", message: e.message || "Silme başarısız." });
     }
   }
 
   function onExport(id, format) {
+    hideAlert();
     if (!id) {
-      setErr("Export için kayıt id bulunamadı.");
+      showAlert({ type: "error", message: "Export için kayıt id bulunamadı." });
       return;
     }
     download(`/api/reports/${id}/export?format=${format}`);
-    setMsg(`Export başlatıldı: report-${id}.${format}`);
+  showAlert({ type: "info", message: `Export başlatıldı: report-${id}.${format}` });
   }
 
   return (
@@ -145,8 +150,7 @@ export default function ReportList() {
         </div>
       </div>
 
-      {msg ? <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{msg}</div> : null}
-      {err ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</div> : null}
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

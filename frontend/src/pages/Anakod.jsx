@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "../api.js";
+import AlertModal from "../components/AlertModal.jsx";
 import MainCodeDetailModal from "../components/MainCodeDetailModal.jsx";
 import ArtifactDetailModal from "../components/ArtifactDetailModal.jsx";
+import useAlertModal from "../hooks/useAlertModal.js";
 
 import { Card, CardHeader, CardBody, CardTitle } from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
@@ -12,8 +14,7 @@ import { IconDelete, IconView } from "../ui/Icons.jsx";
 
 export default function Anakod() {
   const [rows, setRows] = useState([]);
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const { alert, showAlert, hideAlert } = useAlertModal();
 
   const [mcDetailOpen, setMcDetailOpen] = useState(false);
   const [selectedMainCode, setSelectedMainCode] = useState(null);
@@ -34,51 +35,49 @@ export default function Anakod() {
     gis: "",
   });
 
-  async function refresh() {
-    setErr("");
+  const refresh = useCallback(async () => {
+    hideAlert();
     try {
       const data = await apiGet("/api/main-codes/");
       setRows(data.results || data);
     } catch (e) {
-      setErr(e.message || "Liste yüklenemedi.");
+      showAlert({ type: "error", message: e.message || "Liste yüklenemedi." });
     }
-  }
+  }, [hideAlert, showAlert]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   useEffect(() => {
     apiGet("/api/lookups/?keys=FINDING_PLACE")
       .then((data) => setFindingPlaceOptions(data?.FINDING_PLACE ?? []))
-      .catch((e) => setErr(e.message || "Buluntu yeri listesi alınamadı."));
-  }, []);
+      .catch((e) => showAlert({ type: "error", message: e.message || "Buluntu yeri listesi alınamadı." }));
+  }, [showAlert]);
 
   async function onCreate(e) {
     e.preventDefault();
-    setMsg("");
-    setErr("");
+    hideAlert();
     try {
       const res = await apiPost("/api/main-codes/", form);
-      setMsg(`${res.code} anakod başarı ile oluşturuldu.`);
       // Anakod alanı temizlenmesin → sistem verir (backend)
       setForm((p) => ({ ...p, description: "" })); // örnek: açıklamayı temizle
       await refresh();
+      showAlert({ type: "success", message: `${res.code} anakod başarı ile oluşturuldu.` });
     } catch (e2) {
-      setErr(e2.message || "İşlem başarısız.");
+      showAlert({ type: "error", message: e2.message || "İşlem başarısız." });
     }
   }
 
   async function onDelete(id) {
     if (!confirm("Silmek istediğinize emin misiniz?")) return;
-    setMsg("");
-    setErr("");
+    hideAlert();
     try {
       await apiDelete(`/api/main-codes/${id}/`);
-      setMsg("Kayıt silindi.");
       await refresh();
+      showAlert({ type: "success", message: "Kayıt silindi." });
     } catch (e2) {
-      setErr(e2.message || "Silme başarısız.");
+      showAlert({ type: "error", message: e2.message || "Silme başarısız." });
     }
   }
 
@@ -87,12 +86,12 @@ export default function Anakod() {
     setMcDetailOpen(true);
     setMcArtifacts([]);
     setMcArtifactsLoading(true);
-    setErr("");
+    hideAlert();
     try {
       const data = await apiGet(`/api/artifacts/?main_code=${encodeURIComponent(row.id)}`);
       setMcArtifacts(data.results || data);
     } catch (e) {
-      setErr(e.message || "Buluntular yüklenemedi.");
+      showAlert({ type: "error", message: e.message || "Buluntular yüklenemedi." });
     } finally {
       setMcArtifactsLoading(false);
     }
@@ -192,21 +191,12 @@ export default function Anakod() {
                 Anakod Oluştur
               </Button>
 
-              {msg ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  {msg}
-                </div>
-              ) : null}
-
-              {err ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {err}
-                </div>
-              ) : null}
             </div>
           </form>
         </CardBody>
       </Card>
+
+      <AlertModal open={alert.open} type={alert.type} title={alert.title} message={alert.message} onClose={hideAlert} />
 
       <Card>
         <CardHeader className="flex items-center justify-between">

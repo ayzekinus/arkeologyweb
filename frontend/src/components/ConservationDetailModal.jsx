@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiGet } from "../api.js";
+import AlertModal from "./AlertModal.jsx";
 import Modal from "./Modal.jsx";
 import KeyValueRow from "./KeyValueRow.jsx";
 
@@ -119,51 +120,59 @@ export default function ConservationDetailModal({ open, onClose, conservation })
   }, [detail]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Konservasyon Detayı">
-      {loading ? <div className="text-sm text-slate-600">Yükleniyor...</div> : null}
-      {error ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
-      {detail ? (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <KeyValueRow label="Buluntu No" value={formatValue(detail.artifact_full_no)} />
-            <KeyValueRow label="Malzeme" value={formatValue(detail.material)} />
-            <KeyValueRow label="Konservatör" value={formatValue(detail.conservator)} />
-            <KeyValueRow label="Form Anahtarları" value={formatValue(detail.form_keys)} />
-            <KeyValueRow label="Oluşturma Tarihi" value={formatValue(detail.created_at)} />
-            <KeyValueRow label="Güncelleme Tarihi" value={formatValue(detail.updated_at)} />
-          </div>
+    <>
+      <Modal open={open} onClose={onClose} title="Konservasyon Detayı">
+        {loading ? <div className="text-sm text-slate-600">Yükleniyor...</div> : null}
+        {detail ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <KeyValueRow label="Buluntu No" value={formatValue(detail.artifact_full_no)} />
+              <KeyValueRow label="Malzeme" value={formatValue(detail.material)} />
+              <KeyValueRow label="Konservatör" value={formatValue(detail.conservator)} />
+              <KeyValueRow label="Form Anahtarları" value={formatValue(detail.form_keys)} />
+              <KeyValueRow label="Oluşturma Tarihi" value={formatValue(detail.created_at)} />
+              <KeyValueRow label="Güncelleme Tarihi" value={formatValue(detail.updated_at)} />
+            </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm font-semibold text-slate-700">Konservasyon Alanları</div>
-            {dataEntries.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-500">Konservasyon alanı bulunmuyor.</div>
-            ) : (
-              <div className="mt-2 space-y-1">
-                {dataEntries.map(([key, value]) => (
-                  <KeyValueRow
-                    key={key}
-                    label={fieldMeta[key]?.label || key}
-                    value={formatValueWithMeta(key, value)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-sm font-semibold text-slate-700">Konservasyon Alanları</div>
+              {dataEntries.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-500">Konservasyon alanı bulunmuyor.</div>
+              ) : (
+                <div className="mt-2 space-y-1">
+                  {dataEntries.map(([key, value]) => (
+                    <KeyValueRow
+                      key={key}
+                      label={fieldMeta[key]?.label || key}
+                      value={formatValueWithMeta(key, value)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm font-semibold text-slate-700">Görseller</div>
-            {imageEntries.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-500">Görsel bulunmuyor.</div>
-            ) : (
-              <div className="mt-2 space-y-1">
-                {imageEntries.map((img, index) => (
-                  <KeyValueRow key={`${img?.url || index}`} label={`Görsel ${index + 1}`} value={formatValue(img)} />
-                ))}
-              </div>
-            )}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-sm font-semibold text-slate-700">Görseller</div>
+              {imageEntries.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-500">Görsel bulunmuyor.</div>
+              ) : (
+                <div className="mt-2 space-y-1">
+                  {imageEntries.map((img, index) => (
+                    <KeyValueRow key={`${img?.url || index}`} label={`Görsel ${index + 1}`} value={formatValue(img)} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ) : null}
-    </Modal>
+        ) : null}
+      </Modal>
+
+      <AlertModal
+        open={Boolean(error)}
+        type="error"
+        message={error}
+        onClose={() => setError("")}
+      />
+    </>
   );
 }
