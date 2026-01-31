@@ -52,6 +52,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="olustur" replace /> },
           { path: "olustur", element: <ConservationCreate /> },
+          { path: "duzenle/:id", element: <ConservationCreate /> },
           { path: "listele", element: <ConservationList /> },
         ],
       },
