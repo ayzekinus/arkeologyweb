@@ -29,6 +29,7 @@ export default function ConservationDetailModal({ open, onClose, conservation })
   const [detail, setDetail] = useState(conservation || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldLabels, setFieldLabels] = useState({});
 
   const conservationId = useMemo(() => {
     return conservation?.id ?? conservation?.pk ?? null;
@@ -49,6 +50,42 @@ export default function ConservationDetailModal({ open, onClose, conservation })
       .catch((e) => setError(e.message || "Detaylar yüklenemedi."))
       .finally(() => setLoading(false));
   }, [open, conservationId, detail]);
+
+  useEffect(() => {
+    if (!open || !detail) return;
+    const formKeys = Array.isArray(detail.form_keys) ? detail.form_keys.filter(Boolean) : [];
+    if (!formKeys.length) {
+      setFieldLabels({});
+      return;
+    }
+
+    let active = true;
+    Promise.all(
+      formKeys.map((key) => apiGet(`/api/forms/${encodeURIComponent(key)}/schema/`))
+    )
+      .then((schemas) => {
+        if (!active) return;
+        const map = {};
+        schemas.forEach((schema) => {
+          (schema?.sections || []).forEach((section) => {
+            (section?.fields || []).forEach((field) => {
+              if (field?.key && field?.label) {
+                map[field.key] = field.label;
+              }
+            });
+          });
+        });
+        setFieldLabels(map);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFieldLabels({});
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open, detail]);
 
   const dataEntries = useMemo(() => {
     if (!detail?.data || typeof detail.data !== "object") return [];
@@ -82,7 +119,11 @@ export default function ConservationDetailModal({ open, onClose, conservation })
             ) : (
               <div className="mt-2 space-y-1">
                 {dataEntries.map(([key, value]) => (
-                  <KeyValueRow key={key} label={key} value={formatValue(value)} />
+                  <KeyValueRow
+                    key={key}
+                    label={fieldLabels[key] ? `${fieldLabels[key]} (${key})` : key}
+                    value={formatValue(value)}
+                  />
                 ))}
               </div>
             )}
