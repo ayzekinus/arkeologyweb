@@ -29,7 +29,7 @@ export default function ConservationDetailModal({ open, onClose, conservation })
   const [detail, setDetail] = useState(conservation || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [fieldLabels, setFieldLabels] = useState({});
+  const [fieldMeta, setFieldMeta] = useState({});
 
   const conservationId = useMemo(() => {
     return conservation?.id ?? conservation?.pk ?? null;
@@ -55,7 +55,7 @@ export default function ConservationDetailModal({ open, onClose, conservation })
     if (!open || !detail) return;
     const formKeys = Array.isArray(detail.form_keys) ? detail.form_keys.filter(Boolean) : [];
     if (!formKeys.length) {
-      setFieldLabels({});
+      setFieldMeta({});
       return;
     }
 
@@ -70,16 +70,17 @@ export default function ConservationDetailModal({ open, onClose, conservation })
           (schema?.sections || []).forEach((section) => {
             (section?.fields || []).forEach((field) => {
               if (field?.key && field?.label) {
-                map[field.key] = field.label;
+                const choices = Array.isArray(field.choices) ? field.choices : [];
+                map[field.key] = { label: field.label, choices };
               }
             });
           });
         });
-        setFieldLabels(map);
+        setFieldMeta(map);
       })
       .catch(() => {
         if (!active) return;
-        setFieldLabels({});
+        setFieldMeta({});
       });
 
     return () => {
@@ -91,6 +92,26 @@ export default function ConservationDetailModal({ open, onClose, conservation })
     if (!detail?.data || typeof detail.data !== "object") return [];
     return Object.entries(detail.data);
   }, [detail]);
+
+  function formatValueWithMeta(key, value) {
+    const meta = fieldMeta[key];
+    if (!meta) return formatValue(value);
+
+    const formatChoice = (val) => {
+      if (val && typeof val === "object") {
+        if (val.label) return String(val.label);
+        if (val.value !== undefined) return String(val.value);
+      }
+      const found = meta.choices?.find((choice) => choice?.value === val);
+      return found?.label ?? formatValue(val);
+    };
+
+    if (Array.isArray(value)) {
+      return value.map((item) => formatChoice(item)).join(", ");
+    }
+
+    return formatChoice(value);
+  }
 
   const imageEntries = useMemo(() => {
     if (!detail?.images || !Array.isArray(detail.images)) return [];
@@ -121,8 +142,8 @@ export default function ConservationDetailModal({ open, onClose, conservation })
                 {dataEntries.map(([key, value]) => (
                   <KeyValueRow
                     key={key}
-                    label={fieldLabels[key] || key}
-                    value={formatValue(value)}
+                    label={fieldMeta[key]?.label || key}
+                    value={formatValueWithMeta(key, value)}
                   />
                 ))}
               </div>
