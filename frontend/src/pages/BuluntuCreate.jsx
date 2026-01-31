@@ -85,7 +85,9 @@ export default function BuluntuCreate() {
 
   async function loadForms() {
     const data = await apiGet("/api/forms/?page_size=200&ordering=order");
-    setForms(unwrapResults(data));
+    const allForms = unwrapResults(data);
+    const filtered = (allForms || []).filter((form) => !String(form.key || "").startsWith("KONSERVASYON_"));
+    setForms(filtered);
   }
 
   async function loadLookups() {

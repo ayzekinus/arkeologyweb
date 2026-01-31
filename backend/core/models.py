@@ -196,3 +196,24 @@ class Report(models.Model):
     def save(self, *args, **kwargs):
         self.updated_at = timezone.now()
         super().save(*args, **kwargs)
+
+
+class Conservation(models.Model):
+    artifact = models.ForeignKey(Artifact, on_delete=models.CASCADE, related_name="conservations")
+    material = models.CharField(max_length=120, blank=True, null=True, verbose_name="Yapım Malzemesi")
+    form_keys = models.JSONField(default=list, blank=True, verbose_name="Form Anahtarları")
+    data = models.JSONField(default=dict, blank=True, verbose_name="Konservasyon Verisi")
+    images = models.JSONField(default=list, blank=True, verbose_name="Görseller")
+    conservator = models.CharField(max_length=120, blank=True, default="", verbose_name="Konservatör")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Konservasyon #{self.pk} - {self.artifact.full_artifact_no}"
+
+    def save(self, *args, **kwargs):
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
