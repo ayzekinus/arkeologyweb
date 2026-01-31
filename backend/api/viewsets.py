@@ -970,6 +970,15 @@ class ConservationViewSet(viewsets.ModelViewSet):
         meta_map = _conservation_meta_map(conservation)
 
         if fmt == "pdf":
+            try:
+                from reportlab.lib import colors
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import mm
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            except Exception:
+                return Response({"detail": "reportlab yüklü değil."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             base_font, bold_font = _register_dejavu_fonts()
             styles = getSampleStyleSheet()
             normal = styles["BodyText"]
